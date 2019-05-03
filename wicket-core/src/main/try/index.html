@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="wicket-ajax-jquery.js"></script>
+</head>
+<body>
+    <script>
+        console.log(Wicket);
+        Wicket.SomethingElse = Wicket.Class.create();
+        Wicket.SomethingElse.prototype = {
+            initialize: function() {
+                this.message = "HiThere!";
+            },
+            hi: function() {
+                console.log(this.message);
+            }
+
+        };
+        var something = new Wicket.SomethingElse();
+        something.hi();
+    </script>
+</body>
+</html>
