@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "es6",
+    "module": "ESNext",
     "outDir": "dist",
     "noImplicitUseStrict": true,
     "target": "es5"

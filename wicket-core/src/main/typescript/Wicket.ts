@@ -1,3 +1,4 @@
+import "./Wicket/Disclaimer";
 import * as Class from "./Wicket/Class";
 import * as DOM from "./Wicket/DOM";
 import * as Event from "./Wicket/Event";
