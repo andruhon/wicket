@@ -107,7 +107,7 @@ export function processLink(context, node) {
         }
 
         // create link element
-        const css = Head.createElement("link");
+        const css = Head.createElement("link") as HTMLLinkElement;
 
         // copy supplied attributes only.
         const attributes = jQuery(node).prop("attributes");

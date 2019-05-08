@@ -1054,19 +1054,9 @@ var Wicket = (function (exports) {
      * This is needed because header contributions need to do asynchronous download of JS and/or CSS
      * and they have to let next function to run only after the download.
      * After the FunctionsExecuter is initialized, the start methods triggers the first function.
-     *
-     * @param functions {Array} - an array of functions to execute
      */
     var FunctionsExecuter = /** @class */ (function () {
         /**
-         * Functions executer takes array of functions and executes them.
-         * The functions are executed one by one as far as the return value is FunctionsExecuter.DONE.
-         * If the return value is FunctionsExecuter.ASYNC or undefined then the execution of
-         * the functions will be resumed once the `notify` callback function is called.
-         * This is needed because header contributions need to do asynchronous download of JS and/or CSS
-         * and they have to let next function to run only after the download.
-         * After the FunctionsExecuter is initialized, the start methods triggers the first function.
-         *
          * @param functions {Array} - an array of functions to execute
          */
         function FunctionsExecuter(functions) {
@@ -1506,7 +1496,7 @@ var Wicket = (function (exports) {
         }
         script.setAttribute("src_", fakeSrc);
         script.setAttribute("type", type);
-        // set the javascript as element content
+        // set the javascript as element content (these canHave... is an IE stuff)
         if (null === script.canHaveChildren || script.canHaveChildren) {
             var textNode = document.createTextNode(content);
             script.appendChild(textNode);

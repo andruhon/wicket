@@ -3,10 +3,25 @@ import * as Contributor from "./Head/Contributor";
 import {Log} from "./Log";
 import * as DOM from "./DOM";
 
+/**
+ * Header contribution allows component to include custom javascript and stylesheet.
+ *
+ * Header contributor takes the code component would render to page head and
+ * interprets it just as browser would when loading a page.
+ * That means loading external javascripts and stylesheets, executing inline
+ * javascript and aplying inline styles.
+ *
+ * Header contributor also filters duplicate entries, so that it doesn't load/process
+ * resources that have been loaded.
+ * For inline styles and javascript, element id is used to filter out duplicate entries.
+ * For stylesheet and javascript references, url is used for filtering.
+ */
+/* the Head module */
+
 export {Contributor};
 
 // Creates an element in document
-export function createElement (name) {
+export function createElement (name: string): HTMLElement {
     if (isUndef(name) || name === '') {
         Log.error('Cannot create an element without a name');
         return;
@@ -15,7 +30,7 @@ export function createElement (name) {
 }
 
 // Adds the element to page head
-export function addElement (element) {
+export function addElement (element: Node): void {
     const headItems = document.querySelector('head meta[name="wicket.header.items"]');
     if (headItems) {
         headItems.parentNode.insertBefore(element, headItems);
@@ -34,7 +49,7 @@ export function addElement (element) {
 // e.g. Wicket.Head.containsElement(myElement, "src") return true, if there
 // is an element in head that is of same type as myElement, and whose src
 // attribute is same as myElement.src.
-export function containsElement (element, mandatoryAttribute) {
+export function containsElement(element: HTMLElement, mandatoryAttribute: string): { contains: boolean, oldNode?: Element } {
     const attr = element.getAttribute(mandatoryAttribute);
     if (isUndef(attr) || attr === "") {
         return {
@@ -50,7 +65,7 @@ export function containsElement (element, mandatoryAttribute) {
         head = document;
     }
 
-    const nodes = head.getElementsByTagName(elementTagName);
+    const nodes: HTMLCollectionOf<Element> = head.getElementsByTagName(elementTagName);
 
     for (let i = 0; i < nodes.length; ++i) {
         const node = nodes[i];
@@ -86,8 +101,8 @@ export function containsElement (element, mandatoryAttribute) {
 // attribute to filter out duplicates. However, since we set the body of the element, we can't assign
 // also a src value. Therefore we put the url to the src_ (notice the underscore)  attribute.
 // Wicket.Head.containsElement is aware of that and takes also the underscored attributes into account.
-export function addJavascript (content, id, fakeSrc, type) {
-    const script = createElement("script");
+export function addJavascript (content, id, fakeSrc, type): void {
+    const script = createElement("script") as HTMLScriptElement;
     if (id) {
         script.id = id;
     }
@@ -102,8 +117,8 @@ export function addJavascript (content, id, fakeSrc, type) {
     script.setAttribute("src_", fakeSrc);
     script.setAttribute("type", type);
 
-    // set the javascript as element content
-    if (null === script.canHaveChildren || script.canHaveChildren) {
+    // set the javascript as element content (these canHave... is an IE stuff)
+    if (null === (script as any).canHaveChildren || (script as any).canHaveChildren) {
         const textNode = document.createTextNode(content);
         script.appendChild(textNode);
     } else {
