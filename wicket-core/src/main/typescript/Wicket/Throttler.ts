@@ -1,5 +1,8 @@
 import {ThrottlerEntry} from "./ThrottlerEntry";
 
+/**
+ * Throttler's purpose is to make sure that ajax requests wont be fired too often.
+ */
 export class Throttler {
 
     private readonly postponeTimerOnUpdate: boolean;

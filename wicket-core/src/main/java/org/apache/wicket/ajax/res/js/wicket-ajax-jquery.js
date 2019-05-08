@@ -30,23 +30,31 @@ var Wicket = (function (exports) {
      * @author Matej Knopp
      */
 
+    /**
+     * Logging functionality.
+     */
     var Log = /** @class */ (function () {
         function Log() {
         }
         Log.enabled = function () {
-            return false;
+            return Wicket.Ajax.DebugWindow && Wicket.Ajax.DebugWindow.enabled;
         };
         Log.info = function (msg) {
             if (Log.enabled()) {
-                console.info("Wicket.Ajax:", msg);
+                Wicket.Ajax.DebugWindow.logInfo(msg);
             }
         };
         Log.error = function (msg) {
-            console.error('Wicket.Ajax: ', msg);
+            if (Log.enabled()) {
+                Wicket.Ajax.DebugWindow.logError(msg);
+            }
+            else if (typeof (console) !== "undefined" && typeof (console.error) === 'function') {
+                console.error('Wicket.Ajax: ', msg);
+            }
         };
         Log.log = function (msg) {
             if (Log.enabled()) {
-                console.log('Wicket.Ajax: ', msg);
+                Wicket.Ajax.DebugWindow.log(msg);
             }
         };
         return Log;
@@ -479,6 +487,7 @@ var Wicket = (function (exports) {
      * The purpose of these methods is to return a string representation
      * of the DOM tree.
      */
+    /* the Dom module */
     function show(e, display) {
         e = $(e);
         if (e !== null) {
@@ -844,6 +853,13 @@ var Wicket = (function (exports) {
         return Focus;
     }());
 
+    /**
+     * Form serialization
+     *
+     * To post a form using Ajax Wicket first needs to serialize it, which means composing a string
+     * from form elments names and values. The string will then be set as body of POST request.
+     */
+    /* the Form module */
     function encode(text) {
         if (window.encodeURIComponent) {
             return window.encodeURIComponent(text);
@@ -1030,6 +1046,17 @@ var Wicket = (function (exports) {
         parse: parse
     });
 
+    /**
+     * Functions executer takes array of functions and executes them.
+     * The functions are executed one by one as far as the return value is FunctionsExecuter.DONE.
+     * If the return value is FunctionsExecuter.ASYNC or undefined then the execution of
+     * the functions will be resumed once the `notify` callback function is called.
+     * This is needed because header contributions need to do asynchronous download of JS and/or CSS
+     * and they have to let next function to run only after the download.
+     * After the FunctionsExecuter is initialized, the start methods triggers the first function.
+     *
+     * @param functions {Array} - an array of functions to execute
+     */
     var FunctionsExecuter = /** @class */ (function () {
         /**
          * Functions executer takes array of functions and executes them.
@@ -1044,19 +1071,7 @@ var Wicket = (function (exports) {
          */
         function FunctionsExecuter(functions) {
             this.functions = functions;
-            /**
-             * The index of the currently executed function
-             * @type {number}
-             */
             this.current = 0;
-            /**
-             * Tracks the depth of the call stack when `notify` is used for
-             * asynchronous notification that a function execution has finished.
-             * Should be reset to 0 when at some point to avoid problems like
-             * "too much recursion". The reset may break the atomicity by allowing
-             * another instance of FunctionExecuter to run its functions
-             * @type {number}
-             */
             this.depth = 0; // we need to limit call stack depth
         }
         FunctionsExecuter.prototype.processNext = function () {
@@ -1552,6 +1567,19 @@ var Wicket = (function (exports) {
         addJavascripts: addJavascripts
     });
 
+    /**
+     * Channel management
+     *
+     * Wicket Ajax requests are organized in channels. A channel maintain the order of
+     * requests and determines, what should happen when a request is fired while another
+     * one is being processed. The default behavior (stack) puts the all subsequent requests
+     * in a queue, while the drop behavior limits queue size to one, so only the most
+     * recent of subsequent requests is executed.
+     * The name of channel determines the policy. E.g. channel with name foochannel|s is
+     * a stack channel, while barchannel|d is a drop channel.
+     *
+     * The Channel class is supposed to be used through the ChannelManager.
+     */
     var Channel = /** @class */ (function () {
         function Channel(name) {
             var res = name.match(/^([^|]+)\|(d|s|a)$/);
@@ -1612,6 +1640,9 @@ var Wicket = (function (exports) {
         return Channel;
     }());
 
+    /**
+     * Channel manager maintains a map of channels.
+     */
     var ChannelManager = /** @class */ (function () {
         function ChannelManager() {
             this.channels = [];
@@ -1646,6 +1677,14 @@ var Wicket = (function (exports) {
     }());
     var channelManager = new ChannelManager();
 
+    /**
+     * Ajax call fires a Wicket Ajax request and processes the response.
+     * The response can contain
+     *   - javascript that should be invoked
+     *   - body of components being replaced
+     *   - header contributions of components
+     *   - a redirect location
+     */
     var Call = /** @class */ (function () {
         function Call() {
         }
@@ -1715,7 +1754,7 @@ var Wicket = (function (exports) {
          * A helper function that executes an array of handlers (before, success, failure)
          *
          * @param handlers {Array[Function]} - the handlers to execute
-         * @private
+         * @package
          */
         Call.prototype._executeHandlers = function (handlers) {
             var args = [];
@@ -2263,6 +2302,9 @@ var Wicket = (function (exports) {
         return Call;
     }());
 
+    /**
+     * Throttler entry see {@link Throttler} for details
+     */
     var ThrottlerEntry = /** @class */ (function () {
         function ThrottlerEntry(func) {
             this.func = func;
@@ -2287,6 +2329,9 @@ var Wicket = (function (exports) {
         return ThrottlerEntry;
     }());
 
+    /**
+     * Throttler's purpose is to make sure that ajax requests wont be fired too often.
+     */
     var Throttler = /** @class */ (function () {
         /* "postponeTimerOnUpdate" is an optional parameter. If it is set to true, then the timer is
        reset each time the throttle function gets called. Use this behaviour if you want something
@@ -2330,6 +2375,10 @@ var Wicket = (function (exports) {
     }());
     var throttler = new Throttler();
 
+    /**
+     * The Ajax.Request class encapsulates a XmlHttpRequest.
+     */
+    /* the Ajax module */
     var baseUrl = undefined;
     /**
      * A safe getter for Wicket's Ajax base URL.
@@ -2466,6 +2515,14 @@ var Wicket = (function (exports) {
         }
     };
 
+    /* TODO old implementation had these checks */
+    /*if (typeof(Wicket) === 'undefined') {
+        window.Wicket = {};
+    }
+
+    if (typeof(Wicket.Head) === 'object') {
+        return;
+    }*/
     /**
      * A special event that is used to listen for immediate changes in input fields.
      */

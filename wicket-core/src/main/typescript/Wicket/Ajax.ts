@@ -3,6 +3,11 @@ import * as Event from "./Event";
 import {Call} from "./Ajax/Call";
 import {Throttler} from "./Throttler";
 
+/**
+ * The Ajax.Request class encapsulates a XmlHttpRequest.
+ */
+/* the Ajax module */
+
 export var baseUrl = undefined;
 
 export {Channel} from "./Channel";

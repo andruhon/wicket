@@ -1,3 +1,6 @@
+/**
+ * Throttler entry see {@link Throttler} for details
+ */
 export class ThrottlerEntry {
 
     private func: () => any;

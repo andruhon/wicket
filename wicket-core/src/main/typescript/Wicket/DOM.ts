@@ -1,11 +1,13 @@
+import {jQuery, isUndef, $, $$} from "./WicketUtils";
+import * as Event from "./Event";
 /**
  * DOM nodes serialization functionality
  *
  * The purpose of these methods is to return a string representation
  * of the DOM tree.
  */
-import {jQuery, isUndef, $, $$} from "./WicketUtils";
-import * as Event from "./Event";
+/* the Dom module */
+
 
 export function show (e, display?) {
     e = $(e);

@@ -1,5 +1,13 @@
 import {jQuery, $, nodeListToArray} from "./WicketUtils";
 
+/**
+ * Form serialization
+ *
+ * To post a form using Ajax Wicket first needs to serialize it, which means composing a string
+ * from form elments names and values. The string will then be set as body of POST request.
+ */
+/* the Form module */
+
 export function encode (text) {
     if ((window as any).encodeURIComponent) {
         return (window as any).encodeURIComponent(text);

@@ -1,6 +1,19 @@
 import {isUndef} from "./WicketUtils";
 import {Log} from "./Log";
 
+/**
+ * Channel management
+ *
+ * Wicket Ajax requests are organized in channels. A channel maintain the order of
+ * requests and determines, what should happen when a request is fired while another
+ * one is being processed. The default behavior (stack) puts the all subsequent requests
+ * in a queue, while the drop behavior limits queue size to one, so only the most
+ * recent of subsequent requests is executed.
+ * The name of channel determines the policy. E.g. channel with name foochannel|s is
+ * a stack channel, while barchannel|d is a drop channel.
+ *
+ * The Channel class is supposed to be used through the ChannelManager.
+ */
 export class Channel {
 
     busy: boolean;

@@ -11,6 +11,15 @@ import * as Form from "./Wicket/Form";
 import * as Head from "./Wicket/Head";
 import {TimerHandles, Timer} from "./Wicket/Timer";
 
+/* TODO old implementation had these checks */
+/*if (typeof(Wicket) === 'undefined') {
+    window.Wicket = {};
+}
+
+if (typeof(Wicket.Head) === 'object') {
+    return;
+}*/
+
 /**
  * A special event that is used to listen for immediate changes in input fields.
  */

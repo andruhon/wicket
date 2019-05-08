@@ -11,7 +11,14 @@ import {Focus} from "../Focus";
 import {Log} from "../Log";
 import {getAjaxBaseUrl} from "../Ajax";
 
-
+/**
+ * Ajax call fires a Wicket Ajax request and processes the response.
+ * The response can contain
+ *   - javascript that should be invoked
+ *   - body of components being replaced
+ *   - header contributions of components
+ *   - a redirect location
+ */
 export class Call {
 
     constructor() {
@@ -26,7 +33,7 @@ export class Call {
      * @param attrs {Object} - the ajax request attributes to enrich
      * @private
      */
-    _initializeDefaults (attrs) {
+    private _initializeDefaults (attrs) {
 
         // (ajax channel)
         if (typeof(attrs.ch) !== 'string') {
@@ -77,7 +84,7 @@ export class Call {
      * @return {HTMLElement} - the DOM element
      * @private
      */
-    _getTarget (attrs) {
+    private _getTarget (attrs) {
         let target;
         if (attrs.event) {
             target = attrs.event.target;
@@ -93,7 +100,7 @@ export class Call {
      * A helper function that executes an array of handlers (before, success, failure)
      *
      * @param handlers {Array[Function]} - the handlers to execute
-     * @private
+     * @package
      */
     _executeHandlers (handlers, ... args) {
         if (jQuery.isArray(handlers)) {
@@ -126,7 +133,7 @@ export class Call {
      * @see jQuery.serializeArray
      * @private
      */
-    _asParamArray (parameters) {
+    private _asParamArray (parameters) {
         let result = [],
             value,
             name;
@@ -160,7 +167,7 @@ export class Call {
      *  parameters. An empty string if there are no dynamic parameters in attrs
      * @private
      */
-    _calculateDynamicParameters (attrs) {
+    private _calculateDynamicParameters (attrs) {
         let deps = attrs.dep,
             params = [];
 
@@ -183,7 +190,7 @@ export class Call {
      *
      * @param {Object} attrs - the Ajax request attributes configured at the server side
      */
-    ajax (attrs) {
+    public ajax (attrs): any {
         this._initializeDefaults(attrs);
 
         let res = channelManager.schedule(attrs.ch, bind(function () {
@@ -195,7 +202,7 @@ export class Call {
     /**
      * Is an element still present for Ajax requests.
      */
-    _isPresent (id) {
+    private _isPresent (id) {
         if (isUndef(id)) {
             // no id so no check whether present
             return true;
@@ -216,7 +223,7 @@ export class Call {
      *
      * @param {Object} attrs - the Ajax request attributes configured at the server side
      */
-    doAjax (attrs) {
+    public doAjax (attrs): any {
 
         let
             // the headers to use for each Ajax request
@@ -391,7 +398,7 @@ export class Call {
      *
      * @param data {XmlDocument} - the <ajax-response> XML document
      */
-    process (data) {
+    public process (data): void {
         let context =  {
             attrs: {},
             steps: []
@@ -410,7 +417,7 @@ export class Call {
      * @param jqXHR {Object} - the jQuery wrapper around XMLHttpRequest
      * @param context {Object} - the request context with the Ajax request attributes and the FunctionExecuter's steps
      */
-    processAjaxResponse (data, textStatus, jqXHR, context) {
+    processAjaxResponse (data, textStatus, jqXHR, context): void {
 
         if (jqXHR.readyState === 4) {
 
@@ -476,7 +483,7 @@ export class Call {
     }
 
     // Processes the response
-    loadedCallback (envelope, context) {
+    loadedCallback (envelope, context): void {
         // To process the response, we go through the xml document and add a function for every action (step).
         // After this is done, a FunctionExecuter object asynchronously executes these functions.
         // The asynchronous execution is necessary, because some steps might involve loading external javascript,
@@ -541,7 +548,7 @@ export class Call {
     }
 
     // Adds a closure to steps that should be invoked after all other steps have been successfully executed
-    success (context) {
+    public success (context): void {
         context.steps.push(jQuery.proxy(function (notify) {
             Log.info("Response processed successfully.");
 
@@ -557,7 +564,7 @@ export class Call {
     }
 
     // On ajax request failure
-    failure (context, jqXHR, errorMessage, textStatus) {
+    public failure (context, jqXHR, errorMessage, textStatus): void {
         context.steps.push(jQuery.proxy(function (notify) {
             if (errorMessage) {
                 Log.error("Wicket.Ajax.Call.failure: Error while parsing response: " + errorMessage);
@@ -570,7 +577,7 @@ export class Call {
         }, this));
     }
 
-    done (attrs) {
+    public done (attrs): void {
         this._executeHandlers(attrs.dh, attrs);
         Event.publish(Event.Topic.AJAX_CALL_DONE, attrs);
 
@@ -578,7 +585,7 @@ export class Call {
     }
 
     // Adds a closure that replaces a component
-    processComponent (context, node) {
+    public processComponent (context, node): void {
         context.steps.push(function (notify) {
             // get the component id
             let compId = node.getAttribute("id");
@@ -606,7 +613,7 @@ export class Call {
      * @param context {Object} - the object that brings the executer's steps and the attributes
      * @param node {XmlElement} - the <[priority-]evaluate> element with the script to evaluate
      */
-    processEvaluation (context, node) {
+    public processEvaluation (context, node): void {
 
         // used to match evaluation scripts which manually call FunctionsExecuter's notify() when ready
         let scriptWithIdentifierR = new RegExp("\\(function\\(\\)\\{([a-zA-Z_]\\w*)\\|((.|\\n)*)?\\}\\)\\(\\);$");
@@ -683,13 +690,13 @@ export class Call {
     }
 
     // Adds a closure that processes a header contribution
-    processHeaderContribution (context, node) {
+    public processHeaderContribution (context, node): void {
         let c = Head.Contributor;
         c.processContribution(context, node);
     }
 
     // Adds a closure that processes a redirect
-    processRedirect (context, node) {
+    public processRedirect (context, node): void {
         let text = DOM.text(node);
         Log.info("Redirecting to: " + text);
         context.isRedirecting = true;
@@ -697,7 +704,7 @@ export class Call {
     }
 
     // mark the focused component so that we know if it has been replaced by response
-    processFocusedComponentMark (context) {
+    public processFocusedComponentMark (context): void {
         context.steps.push(function (notify) {
             Focus.markFocusedComponent();
 
@@ -707,7 +714,7 @@ export class Call {
     }
 
     // detect if the focused component was replaced
-    processFocusedComponentReplaceCheck (steps, lastReplaceComponentStep) {
+    public processFocusedComponentReplaceCheck (steps, lastReplaceComponentStep): void {
         // add this step imediately after all components have been replaced
         steps.splice(lastReplaceComponentStep + 1, 0, function (notify) {
             Focus.checkFocusedComponentReplaced();
