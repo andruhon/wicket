@@ -1,13 +1,14 @@
-import * as Wicket from "../Wicket";
+import {isUndef} from "./WicketUtils";
 import * as Contributor from "./Head/Contributor";
-import {isUndef} from "../Wicket";
+import {Log} from "./Log";
+import * as DOM from "./DOM";
 
 export {Contributor};
 
 // Creates an element in document
 export function createElement (name) {
     if (isUndef(name) || name === '') {
-        Wicket.Log.error('Cannot create an element without a name');
+        Log.error('Cannot create an element without a name');
         return;
     }
     return document.createElement(name);
@@ -15,11 +16,11 @@ export function createElement (name) {
 
 // Adds the element to page head
 export function addElement (element) {
-    var headItems = document.querySelector('head meta[name="wicket.header.items"]');
+    const headItems = document.querySelector('head meta[name="wicket.header.items"]');
     if (headItems) {
         headItems.parentNode.insertBefore(element, headItems);
     } else {
-        var head = document.querySelector("head");
+        const head = document.querySelector("head");
 
         if (head) {
             head.appendChild(element);
@@ -34,33 +35,33 @@ export function addElement (element) {
 // is an element in head that is of same type as myElement, and whose src
 // attribute is same as myElement.src.
 export function containsElement (element, mandatoryAttribute) {
-    var attr = element.getAttribute(mandatoryAttribute);
+    const attr = element.getAttribute(mandatoryAttribute);
     if (isUndef(attr) || attr === "") {
         return {
             contains: false
         };
     }
 
-    var elementTagName = element.tagName.toLowerCase();
-    var elementId = element.getAttribute("id");
-    var head: any = document.getElementsByTagName("head")[0];
+    const elementTagName = element.tagName.toLowerCase();
+    const elementId = element.getAttribute("id");
+    let head: any = document.getElementsByTagName("head")[0];
 
     if (elementTagName === "script") {
         head = document;
     }
 
-    var nodes = head.getElementsByTagName(elementTagName);
+    const nodes = head.getElementsByTagName(elementTagName);
 
-    for (var i = 0; i < nodes.length; ++i) {
-        var node = nodes[i];
+    for (let i = 0; i < nodes.length; ++i) {
+        const node = nodes[i];
 
         // check node names and mandatory attribute values
         // we also have to check for attribute name that is suffixed by "_".
         // this is necessary for filtering script references
         if (node.tagName.toLowerCase() === elementTagName) {
 
-            var loadedUrl = node.getAttribute(mandatoryAttribute);
-            var loadedUrl_ = node.getAttribute(mandatoryAttribute+"_");
+            const loadedUrl = node.getAttribute(mandatoryAttribute);
+            const loadedUrl_ = node.getAttribute(mandatoryAttribute + "_");
             if (loadedUrl === attr || loadedUrl_ === attr) {
                 return {
                     contains: true
@@ -86,7 +87,7 @@ export function containsElement (element, mandatoryAttribute) {
 // also a src value. Therefore we put the url to the src_ (notice the underscore)  attribute.
 // Wicket.Head.containsElement is aware of that and takes also the underscored attributes into account.
 export function addJavascript (content, id, fakeSrc, type) {
-    var script = createElement("script");
+    const script = createElement("script");
     if (id) {
         script.id = id;
     }
@@ -103,7 +104,7 @@ export function addJavascript (content, id, fakeSrc, type) {
 
     // set the javascript as element content
     if (null === script.canHaveChildren || script.canHaveChildren) {
-        var textNode = document.createTextNode(content);
+        const textNode = document.createTextNode(content);
         script.appendChild(textNode);
     } else {
         script.text = content;
@@ -114,19 +115,19 @@ export function addJavascript (content, id, fakeSrc, type) {
 // Goes through all script elements contained by the element and add them to head
 export function addJavascripts (element, contentFilter) {
     function add(element) {
-        var src = element.getAttribute("src");
-        var type = element.getAttribute("type");
+        const src = element.getAttribute("src");
+        const type = element.getAttribute("type");
 
         // if it is a reference, just add it to head
         if (src !== null && src.length > 0) {
-            var e = document.createElement("script");
+            const e = document.createElement("script");
             if (type) {
                 e.setAttribute("type",type);
             }
             e.setAttribute("src", src);
             addElement(e);
         } else {
-            var content = Wicket.DOM.serializeNodeChildren(element);
+            let content = DOM.serializeNodeChildren(element);
             if (isUndef(content) || content === "") {
                 content = element.text;
             }
@@ -146,8 +147,8 @@ export function addJavascripts (element, contentFilter) {
         // we need to check if there are any children, because Safari
         // aborts when the element is a text node
         if (element.childNodes.length > 0) {
-            var scripts = element.getElementsByTagName("script");
-            for (var i = 0; i < scripts.length; ++i) {
+            const scripts = element.getElementsByTagName("script");
+            for (let i = 0; i < scripts.length; ++i) {
                 add(scripts[i]);
             }
         }

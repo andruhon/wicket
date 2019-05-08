@@ -1,9 +1,16 @@
-import * as Wicket from "../../Wicket";
-import {getAjaxBaseUrl, htmlToDomDocument, isUndef} from "../../Wicket";
-import {redirect} from "../Ajax";
+import {$, bind, htmlToDomDocument, redirect, isUndef, jQuery} from "../WicketUtils";
+import * as Event from "../Event";
+import * as Form from "../Form";
+import * as DOM from "../DOM";
+import * as Xml from "../Xml";
+import * as Head from "../Head";
+import {channelManager} from "../ChannelManager";
+import {Browser} from "../Browser";
 import {FunctionsExecuter} from "../FunctionsExecuter";
+import {Focus} from "../Focus";
+import {Log} from "../Log";
+import {getAjaxBaseUrl} from "../Ajax";
 
-declare let jQuery: any;
 
 export class Call {
 
@@ -75,7 +82,7 @@ export class Call {
         if (attrs.event) {
             target = attrs.event.target;
         } else if (!jQuery.isWindow(attrs.c)) {
-            target = Wicket.$(attrs.c);
+            target = $(attrs.c);
         } else {
             target = window;
         }
@@ -179,7 +186,7 @@ export class Call {
     ajax (attrs) {
         this._initializeDefaults(attrs);
 
-        let res = Wicket.channelManager.schedule(attrs.ch, Wicket.bind(function () {
+        let res = channelManager.schedule(attrs.ch, bind(function () {
             this.doAjax(attrs);
         }, this));
         return res !== null ? res: true;
@@ -194,7 +201,7 @@ export class Call {
             return true;
         }
 
-        let element = Wicket.$(id);
+        let element = $(id);
         if (isUndef(element)) {
             // not present
             return false;
@@ -237,12 +244,12 @@ export class Call {
                 // initialize the array for steps (closures that execute each action)
                 steps: []
             },
-            we = Wicket.Event,
+            we = Event,
             topic = we.Topic;
 
-        if (Wicket.Focus.lastFocusId) {
+        if (Focus.lastFocusId) {
             // WICKET-6568 might contain non-ASCII
-            headers["Wicket-FocusedElementId"] = Wicket.Form.encode(Wicket.Focus.lastFocusId);
+            headers["Wicket-FocusedElementId"] = Form.encode(Focus.lastFocusId);
         }
 
         self._executeHandlers(attrs.bh, attrs);
@@ -264,7 +271,7 @@ export class Call {
                     result = new Function(precondition).call(that, attrs);
                 }
                 if (result === false) {
-                    Wicket.Log.info("Ajax request stopped because of precondition check, url: " + attrs.u);
+                    Log.info("Ajax request stopped because of precondition check, url: " + attrs.u);
                     self.done(attrs);
                     return false;
                 }
@@ -275,8 +282,8 @@ export class Call {
 
         if (attrs.f) {
             // serialize the form with id == attrs.f
-            let form = Wicket.$(attrs.f);
-            data = data.concat(Wicket.Form.serializeForm(form));
+            let form = $(attrs.f);
+            data = data.concat(Form.serializeForm(form));
 
             // set the submitting component input name
             if (attrs.sc) {
@@ -285,8 +292,8 @@ export class Call {
             }
         } else if (attrs.c && !jQuery.isWindow(attrs.c)) {
             // serialize just the form component with id == attrs.c
-            let el = Wicket.$(attrs.c);
-            data = data.concat(Wicket.Form.serializeElement(el, attrs.sr));
+            let el = $(attrs.c);
+            data = data.concat(Form.serializeElement(el, attrs.sr));
         }
 
         // collect the dynamic extra parameters
@@ -311,7 +318,7 @@ export class Call {
                 data = formData;
                 wwwFormUrlEncoded = false;
             } catch (exception) {
-                Wicket.Log.error("Ajax multipat not supported:" + exception);
+                Log.error("Ajax multipat not supported:" + exception);
             }
         }
 
@@ -329,7 +336,7 @@ export class Call {
 
                 if (attrs.i) {
                     // show the indicator
-                    Wicket.DOM.showIncrementally(attrs.i);
+                    DOM.showIncrementally(attrs.i);
                 }
             },
             data: data,
@@ -357,7 +364,7 @@ export class Call {
 
                 context.steps.push(jQuery.proxy(function (notify) {
                     if (attrs.i && (context as any).isRedirecting !== true) {
-                        Wicket.DOM.hideIncrementally(attrs.i);
+                        DOM.hideIncrementally(attrs.i);
                     }
 
                     self._executeHandlers(attrs.coh, attrs, jqXHR, textStatus);
@@ -389,7 +396,7 @@ export class Call {
             attrs: {},
             steps: []
         };
-        let xmlDocument = Wicket.Xml.parse(data);
+        let xmlDocument = Xml.parse(data);
         this.loadedCallback(xmlDocument, context);
         let executer = new FunctionsExecuter(context.steps);
         executer.start();
@@ -445,7 +452,7 @@ export class Call {
                     }
                     calculatedRedirect += "/" + redirectUrl;
 
-                    if (Wicket.Browser.isGecko()) {
+                    if (Browser.isGecko()) {
                         // firefox 3 has problem with window.location setting relative url
                         calculatedRedirect = window.location.protocol + "//" + window.location.host + calculatedRedirect;
                     }
@@ -456,10 +463,10 @@ export class Call {
             }
             else {
                 // no redirect, just regular response
-                if (Wicket.Log.enabled()) {
+                if (Log.enabled()) {
                     let responseAsText = jqXHR.responseText;
-                    Wicket.Log.info("Received ajax response (" + responseAsText.length + " characters)");
-                    Wicket.Log.info("\n" + responseAsText);
+                    Log.info("Received ajax response (" + responseAsText.length + " characters)");
+                    Log.info("\n" + responseAsText);
                 }
 
                 // invoke the loaded callback with an xml document
@@ -536,13 +543,13 @@ export class Call {
     // Adds a closure to steps that should be invoked after all other steps have been successfully executed
     success (context) {
         context.steps.push(jQuery.proxy(function (notify) {
-            Wicket.Log.info("Response processed successfully.");
+            Log.info("Response processed successfully.");
 
             let attrs = context.attrs;
             this._executeHandlers(attrs.sh, attrs, null, null, 'success');
-            Wicket.Event.publish(Wicket.Event.Topic.AJAX_CALL_SUCCESS, attrs, null, null, 'success');
+            Event.publish(Event.Topic.AJAX_CALL_SUCCESS, attrs, null, null, 'success');
 
-            Wicket.Focus.requestFocus();
+            Focus.requestFocus();
 
             // continue to next step (which should make the processing stop, as success should be the final step)
             return FunctionsExecuter.DONE;
@@ -553,11 +560,11 @@ export class Call {
     failure (context, jqXHR, errorMessage, textStatus) {
         context.steps.push(jQuery.proxy(function (notify) {
             if (errorMessage) {
-                Wicket.Log.error("Wicket.Ajax.Call.failure: Error while parsing response: " + errorMessage);
+                Log.error("Wicket.Ajax.Call.failure: Error while parsing response: " + errorMessage);
             }
             let attrs = context.attrs;
             this._executeHandlers(attrs.fh, attrs, jqXHR, errorMessage, textStatus);
-            Wicket.Event.publish(Wicket.Event.Topic.AJAX_CALL_FAILURE, attrs, jqXHR, errorMessage, textStatus);
+            Event.publish(Event.Topic.AJAX_CALL_FAILURE, attrs, jqXHR, errorMessage, textStatus);
 
             return FunctionsExecuter.DONE;
         }, this));
@@ -565,9 +572,9 @@ export class Call {
 
     done (attrs) {
         this._executeHandlers(attrs.dh, attrs);
-        Wicket.Event.publish(Wicket.Event.Topic.AJAX_CALL_DONE, attrs);
+        Event.publish(Event.Topic.AJAX_CALL_DONE, attrs);
 
-        Wicket.channelManager.done(attrs.ch);
+        channelManager.done(attrs.ch);
     }
 
     // Adds a closure that replaces a component
@@ -577,17 +584,17 @@ export class Call {
             let compId = node.getAttribute("id");
 
             // get existing component
-            let element = Wicket.$(compId);
+            let element = $(compId);
 
             if (isUndef(element)) {
-                Wicket.Log.error("Wicket.Ajax.Call.processComponent: Component with id [[" +
+                Log.error("Wicket.Ajax.Call.processComponent: Component with id [[" +
                     compId + "]] was not found while trying to perform markup update. " +
                     "Make sure you called component.setOutputMarkupId(true) on the component whose markup you are trying to update.");
             } else {
-                let text = Wicket.DOM.text(node);
+                let text = DOM.text(node);
 
                 // replace the component
-                Wicket.DOM.replace(element, text);
+                DOM.replace(element, text);
             }
             // continue to next step
             return FunctionsExecuter.DONE;
@@ -612,11 +619,11 @@ export class Call {
         let scriptSplitterR = new RegExp("\\(function\\(\\)\\{[\\s\\S]*?}\\)\\(\\);", 'gi');
 
         // get the javascript body
-        let text = Wicket.DOM.text(node);
+        let text = DOM.text(node);
 
         // aliases to improve performance
         let steps = context.steps;
-        let log = Wicket.Log;
+        let log = Log;
 
         let evaluateWithManualNotify = function (parameters, body) {
             return function(notify) {
@@ -677,14 +684,14 @@ export class Call {
 
     // Adds a closure that processes a header contribution
     processHeaderContribution (context, node) {
-        let c = Wicket.Head.Contributor;
+        let c = Head.Contributor;
         c.processContribution(context, node);
     }
 
     // Adds a closure that processes a redirect
     processRedirect (context, node) {
-        let text = Wicket.DOM.text(node);
-        Wicket.Log.info("Redirecting to: " + text);
+        let text = DOM.text(node);
+        Log.info("Redirecting to: " + text);
         context.isRedirecting = true;
         redirect(text);
     }
@@ -692,7 +699,7 @@ export class Call {
     // mark the focused component so that we know if it has been replaced by response
     processFocusedComponentMark (context) {
         context.steps.push(function (notify) {
-            Wicket.Focus.markFocusedComponent();
+            Focus.markFocusedComponent();
 
             // continue to next step
             return FunctionsExecuter.DONE;
@@ -703,7 +710,7 @@ export class Call {
     processFocusedComponentReplaceCheck (steps, lastReplaceComponentStep) {
         // add this step imediately after all components have been replaced
         steps.splice(lastReplaceComponentStep + 1, 0, function (notify) {
-            Wicket.Focus.checkFocusedComponentReplaced();
+            Focus.checkFocusedComponentReplaced();
 
             // continue to next step
             return FunctionsExecuter.DONE;

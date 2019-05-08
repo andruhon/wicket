@@ -4,13 +4,11 @@
  * The purpose of these methods is to return a string representation
  * of the DOM tree.
  */
-import * as Wicket from "../Wicket";
-import {DOM, isUndef} from "../Wicket";
-
-declare var jQuery: any;
+import {jQuery, isUndef, $, $$} from "./WicketUtils";
+import * as Event from "./Event";
 
 export function show (e, display?) {
-    e = Wicket.$(e);
+    e = $(e);
     if (e !== null) {
         if (isUndef(display)) {
             // no explicit 'display' value is requested so
@@ -25,7 +23,7 @@ export function show (e, display?) {
 
 /** hides an element */
 export function hide (e) {
-    e = Wicket.$(e);
+    e = $(e);
     if (e !== null) {
         jQuery(e).hide();
     }
@@ -46,49 +44,36 @@ export function toggleClass(elementId, cssClass, Switch) {
     jQuery('#'+elementId).toggleClass(cssClass, Switch);
 }
 
-/** call-counting implementation of Wicket.DOM.show() */
+/** call-counting implementation of DOM.show() */
 export function showIncrementally(e) {
-    e = Wicket.$(e);
+    e = $(e);
     if (e === null) {
         return;
     }
-    var count = e.getAttribute("showIncrementallyCount");
+    let count = e.getAttribute("showIncrementallyCount");
     count = parseInt(isUndef(count) ? 0 : count, 10);
     if (count >= 0) {
-        DOM.show(e);
+        show(e);
     }
     e.setAttribute("showIncrementallyCount", count + 1);
 }
 
-/** call-counting implementation of Wicket.DOM.hide() */
+/** call-counting implementation of DOM.hide() */
 export function hideIncrementally (e) {
-    e = Wicket.$(e);
+    e = $(e);
     if (e === null) {
         return;
     }
-    var count = e.getAttribute("showIncrementallyCount");
+    let count = e.getAttribute("showIncrementallyCount");
     count = parseInt(String(isUndef(count) ? 0 : count - 1), 10);
     if (count <= 0) {
-        Wicket.DOM.hide(e);
+        hide(e);
     }
     e.setAttribute("showIncrementallyCount", count);
 }
 
 export function get(arg) {
-    if (isUndef(arg)) {
-        return null;
-    }
-    if (arguments.length > 1) {
-        var e = [];
-        for (var i = 0; i < arguments.length; i++) {
-            e.push(Wicket.DOM.get(arguments[i]));
-        }
-        return e;
-    } else if (typeof arg === 'string') {
-        return document.getElementById(arg);
-    } else {
-        return arg;
-    }
+    return $(arg);
 }
 
 /**
@@ -96,23 +81,7 @@ export function get(arg) {
  * if the argument is not element, function returns true
  */
 export function inDoc (element) {
-    if (element === window) {
-        return true;
-    }
-    if (typeof(element) === "string") {
-        element = Wicket.$(element);
-    }
-    if (isUndef(element) || isUndef(element.tagName)) {
-        return false;
-    }
-
-    var id = element.getAttribute('id');
-    if (isUndef(id) || id === "") {
-        return element.ownerDocument === document;
-    }
-    else {
-        return document.getElementById(id) === element;
-    }
+    return $$(element);
 }
 
 /**
@@ -131,25 +100,25 @@ export function inDoc (element) {
  */
 export function replace (element, text) {
 
-    var we = Wicket.Event;
-    var topic = we.Topic;
+    const we = Event;
+    const topic = we.Topic;
 
     we.publish(topic.DOM_NODE_REMOVING, element);
 
     if (element.tagName.toLowerCase() === "title") {
         // match the text between the tags
-        var titleText = />(.*?)</.exec(text)[1];
+        const titleText = />(.*?)</.exec(text)[1];
         document.title = titleText;
         return;
     } else {
         // jQuery 1.9+ expects '<' as the very first character in text
-        var cleanedText = jQuery.trim(text);
+        const cleanedText = jQuery.trim(text);
 
-        var $newElement = jQuery(cleanedText);
+        const $newElement = jQuery(cleanedText);
         jQuery(element).replaceWith($newElement);
     }
 
-    var newElement = Wicket.$(element.id);
+    const newElement = $(element.id);
     if (newElement) {
         we.publish(topic.DOM_NODE_ADDED, newElement);
     }
@@ -161,11 +130,11 @@ export function serializeNodeChildren(node) {
     if (isUndef(node)) {
         return "";
     }
-    var result = [];
+    const result = [];
 
     if (node.childNodes.length > 0) {
-        for (var i = 0; i < node.childNodes.length; i++) {
-            var thisNode = node.childNodes[i];
+        for (let i = 0; i < node.childNodes.length; i++) {
+            const thisNode = node.childNodes[i];
             switch (thisNode.nodeType) {
                 case 1: // ELEMENT_NODE
                 case 5: // ENTITY_REFERENCE_NODE
@@ -199,13 +168,13 @@ export function serializeNode(node){
     if (isUndef(node)) {
         return "";
     }
-    var result = [];
+    const result = [];
     result.push("<");
     result.push(node.nodeName);
 
     if (node.attributes && node.attributes.length > 0) {
 
-        for (var i = 0; i < node.attributes.length; i++) {
+        for (let i = 0; i < node.attributes.length; i++) {
             // serialize the attribute only if it has meaningful value that is not inherited
             if (node.attributes[i].nodeValue && node.attributes[i].specified) {
                 result.push(" ");
@@ -218,7 +187,7 @@ export function serializeNode(node){
     }
 
     result.push(">");
-    result.push(Wicket.DOM.serializeNodeChildren(node));
+    result.push(serializeNodeChildren(node));
     result.push("</");
     result.push(node.nodeName);
     result.push(">");
@@ -227,9 +196,9 @@ export function serializeNode(node){
 
 // Utility function that determines whether given element is part of the current document
 export function containsElement (element) {
-    var id = element.getAttribute("id");
+    const id = element.getAttribute("id");
     if (id) {
-        return Wicket.$(id) !== null;
+        return $(id) !== null;
     }
     else {
         return false;
@@ -247,11 +216,11 @@ export function text (node) {
         return "";
     }
 
-    var result = [];
+    const result = [];
 
     if (node.childNodes.length > 0) {
-        for (var i = 0; i < node.childNodes.length; i++) {
-            var thisNode = node.childNodes[i];
+        for (let i = 0; i < node.childNodes.length; i++) {
+            const thisNode = node.childNodes[i];
             switch (thisNode.nodeType) {
                 case 1: // ELEMENT_NODE
                 case 5: // ENTITY_REFERENCE_NODE

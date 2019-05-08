@@ -30,91 +30,42 @@ var Wicket = (function (exports) {
      * @author Matej Knopp
      */
 
-    function create() {
-        return function () {
-            this.initialize.apply(this, arguments);
+    var Log = /** @class */ (function () {
+        function Log() {
+        }
+        Log.enabled = function () {
+            return false;
         };
-    }
-
-    var Class = /*#__PURE__*/Object.freeze({
-        create: create
-    });
-
-    /**
-     * DOM nodes serialization functionality
-     *
-     * The purpose of these methods is to return a string representation
-     * of the DOM tree.
-     */
-    function show(e, display) {
-        e = $(e);
-        if (e !== null) {
-            if (isUndef(display)) {
-                // no explicit 'display' value is requested so
-                // use jQuery. It has special logic to decide which is the
-                // best value for an HTMLElement
-                jQuery(e).show();
+        Log.info = function (msg) {
+            if (Log.enabled()) {
+                console.info("Wicket.Ajax:", msg);
             }
-            else {
-                e.style.display = display;
+        };
+        Log.error = function (msg) {
+            console.error('Wicket.Ajax: ', msg);
+        };
+        Log.log = function (msg) {
+            if (Log.enabled()) {
+                console.log('Wicket.Ajax: ', msg);
             }
-        }
+        };
+        return Log;
+    }());
+
+    // TODO import jQuery definition
+    // declare const jQuery: any;
+    var jQuery = window.jQuery;
+    function isUndef(target) {
+        return (typeof (target) === 'undefined' || target === null);
     }
-    /** hides an element */
-    function hide(e) {
-        e = $(e);
-        if (e !== null) {
-            jQuery(e).hide();
-        }
-    }
-    /**
-     * Add or remove one or more classes from each element in the
-     * set of matched elements, depending on either the class's presence
-     * or the value of the switch argument.
-     *
-     * @param {String} elementId The markup id of the element that will be manipulated.
-     * @param {String} cssClass One or more class names (separated by spaces)
-     *        to be toggled for each element in the matched set.
-     * @param {Boolean} Switch A Boolean (not just truthy/falsy) value to
-     *        determine whether the class should be added or removed.
-     */
-    function toggleClass(elementId, cssClass, Switch) {
-        jQuery('#' + elementId).toggleClass(cssClass, Switch);
-    }
-    /** call-counting implementation of Wicket.DOM.show() */
-    function showIncrementally(e) {
-        e = $(e);
-        if (e === null) {
-            return;
-        }
-        var count = e.getAttribute("showIncrementallyCount");
-        count = parseInt(isUndef(count) ? 0 : count, 10);
-        if (count >= 0) {
-            show(e);
-        }
-        e.setAttribute("showIncrementallyCount", count + 1);
-    }
-    /** call-counting implementation of Wicket.DOM.hide() */
-    function hideIncrementally(e) {
-        e = $(e);
-        if (e === null) {
-            return;
-        }
-        var count = e.getAttribute("showIncrementallyCount");
-        count = parseInt(String(isUndef(count) ? 0 : count - 1), 10);
-        if (count <= 0) {
-            hide(e);
-        }
-        e.setAttribute("showIncrementallyCount", count);
-    }
-    function get(arg) {
+    function $(arg) {
         if (isUndef(arg)) {
             return null;
         }
         if (arguments.length > 1) {
             var e = [];
             for (var i = 0; i < arguments.length; i++) {
-                e.push(get(arguments[i]));
+                e.push($(arguments[i]));
             }
             return e;
         }
@@ -129,7 +80,7 @@ var Wicket = (function (exports) {
      * returns if the element belongs to current document
      * if the argument is not element, function returns true
      */
-    function inDoc(element) {
+    function $$(element) {
         if (element === window) {
             return true;
         }
@@ -148,167 +99,207 @@ var Wicket = (function (exports) {
         }
     }
     /**
-     * A cross-browser method that replaces the markup of an element. The behavior
-     * is similar to calling element.outerHtml=text in internet explorer. However
-     * this method also takes care of executing javascripts within the markup on
-     * browsers that don't do that automatically.
-     * Also this method takes care of replacing table elements (tbody, tr, td, thead)
-     * on browser where it's not supported when using outerHTML (IE).
+     * Merges two objects. Values of the second will overwrite values of the first.
      *
-     * This method sends notifications to all subscribers for channels with names
-     * '/dom/node/removing' with the element that is going to be replaced and
-     * '/dom/node/added' with the newly created element (the replacement).
-     *
-     * Note: the 'to be replaced' element must have an 'id' attribute
+     * @param {Object} object1 - the first object to merge
+     * @param {Object} object2 - the second object to merge
+     * @return {Object} a new object with the values of object1 and object2
      */
-    function replace(element, text) {
-        var we = Event;
-        var topic = we.Topic;
-        we.publish(topic.DOM_NODE_REMOVING, element);
-        if (element.tagName.toLowerCase() === "title") {
-            // match the text between the tags
-            var titleText = />(.*?)</.exec(text)[1];
-            document.title = titleText;
-            return;
-        }
-        else {
-            // jQuery 1.9+ expects '<' as the very first character in text
-            var cleanedText = jQuery.trim(text);
-            var $newElement = jQuery(cleanedText);
-            jQuery(element).replaceWith($newElement);
-        }
-        var newElement = $(element.id);
-        if (newElement) {
-            we.publish(topic.DOM_NODE_ADDED, newElement);
-        }
-    }
-    // Method for serializing DOM nodes to string
-    // original taken from Tacos (http://tacoscomponents.jot.com)
-    function serializeNodeChildren(node) {
-        if (isUndef(node)) {
-            return "";
-        }
-        var result = [];
-        if (node.childNodes.length > 0) {
-            for (var i = 0; i < node.childNodes.length; i++) {
-                var thisNode = node.childNodes[i];
-                switch (thisNode.nodeType) {
-                    case 1: // ELEMENT_NODE
-                    case 5: // ENTITY_REFERENCE_NODE
-                        result.push(this.serializeNode(thisNode));
-                        break;
-                    case 8: // COMMENT
-                        result.push("<!--");
-                        result.push(thisNode.nodeValue);
-                        result.push("-->");
-                        break;
-                    case 4: // CDATA_SECTION_NODE
-                        result.push("<![CDATA[");
-                        result.push(thisNode.nodeValue);
-                        result.push("]]>");
-                        break;
-                    case 3: // TEXT_NODE
-                    case 2: // ATTRIBUTE_NODE
-                        result.push(thisNode.nodeValue);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-        else {
-            result.push(node.textContent || node.text);
-        }
-        return result.join("");
-    }
-    function serializeNode(node) {
-        if (isUndef(node)) {
-            return "";
-        }
-        var result = [];
-        result.push("<");
-        result.push(node.nodeName);
-        if (node.attributes && node.attributes.length > 0) {
-            for (var i = 0; i < node.attributes.length; i++) {
-                // serialize the attribute only if it has meaningful value that is not inherited
-                if (node.attributes[i].nodeValue && node.attributes[i].specified) {
-                    result.push(" ");
-                    result.push(node.attributes[i].name);
-                    result.push("=\"");
-                    result.push(node.attributes[i].value);
-                    result.push("\"");
-                }
-            }
-        }
-        result.push(">");
-        result.push(serializeNodeChildren(node));
-        result.push("</");
-        result.push(node.nodeName);
-        result.push(">");
-        return result.join("");
-    }
-    // Utility function that determines whether given element is part of the current document
-    function containsElement(element) {
-        var id = element.getAttribute("id");
-        if (id) {
-            return $(id) !== null;
-        }
-        else {
-            return false;
-        }
+    function merge(object1, object2) {
+        return jQuery.extend({}, object1, object2);
     }
     /**
-     * Reads the text from the node's children nodes.
-     * Used instead of jQuery.text() because it is very slow in IE10/11.
-     * WICKET-5132, WICKET-5510
-     * @param node {DOMElement} the root node
+     * Takes a function and returns a new one that will always have a particular context, i.e. 'this' will be the passed context.
+     *
+     * @param {Function} fn - the function which context will be set
+     * @param {Object} context - the new context for the function
+     * @return {Function} the original function with the changed context
      */
-    function text(node) {
-        if (isUndef(node)) {
-            return "";
+    function bind(fn, context) {
+        return jQuery.proxy(fn, context);
+    }
+    /**
+     * Helper method that serializes HtmlDocument to string and then
+     * creates a DOMDocument by parsing this string.
+     * It is used as a workaround for the problem described at https://issues.apache.org/jira/browse/WICKET-4332
+     * @param htmlDocument (DispHtmlDocument) the document object created by IE from the XML response in the iframe
+     */
+    function htmlToDomDocument(htmlDocument) {
+        var xmlAsString = htmlDocument.body.outerText;
+        xmlAsString = xmlAsString.replace(/^\s+|\s+$/g, ''); // trim
+        xmlAsString = xmlAsString.replace(/(\n|\r)-*/g, ''); // remove '\r\n-'. The dash is optional.
+        var xmldoc = parseXML(xmlAsString);
+        return xmldoc;
+    }
+    function parseXML(text) {
+        var xmlDocument;
+        if (window.DOMParser) {
+            var parser = new DOMParser();
+            xmlDocument = parser.parseFromString(text, "text/xml");
         }
-        var result = [];
-        if (node.childNodes.length > 0) {
-            for (var i = 0; i < node.childNodes.length; i++) {
-                var thisNode = node.childNodes[i];
-                switch (thisNode.nodeType) {
-                    case 1: // ELEMENT_NODE
-                    case 5: // ENTITY_REFERENCE_NODE
-                        result.push(this.text(thisNode));
-                        break;
-                    case 3: // TEXT_NODE
-                    case 4: // CDATA_SECTION_NODE
-                        result.push(thisNode.nodeValue);
-                        break;
-                    default:
-                        break;
+        else if (window.ActiveXObject) {
+            try {
+                xmlDocument = new ActiveXObject("Msxml2.DOMDocument.6.0");
+            }
+            catch (err6) {
+                try {
+                    xmlDocument = new ActiveXObject("Msxml2.DOMDocument.5.0");
+                }
+                catch (err5) {
+                    try {
+                        xmlDocument = new ActiveXObject("Msxml2.DOMDocument.4.0");
+                    }
+                    catch (err4) {
+                        try {
+                            xmlDocument = new ActiveXObject("MSXML2.DOMDocument.3.0");
+                        }
+                        catch (err3) {
+                            try {
+                                xmlDocument = new ActiveXObject("Microsoft.XMLDOM");
+                            }
+                            catch (err2) {
+                                Log.error("Cannot create DOM document: " + err2);
+                            }
+                        }
+                    }
+                }
+            }
+            if (xmlDocument) {
+                xmlDocument.async = "false";
+                if (!xmlDocument.loadXML(text)) {
+                    Log.error("Error parsing response: " + text);
                 }
             }
         }
-        else {
-            result.push(node.textContent || node.text);
+        return xmlDocument;
+    }
+    /**
+     * Converts a NodeList to an Array
+     *
+     * @param nodeList The NodeList to convert
+     * @returns {Array} The array with document nodes
+     */
+    function nodeListToArray(nodeList) {
+        var arr = [], nodeId;
+        if (nodeList && nodeList.length) {
+            for (nodeId = 0; nodeId < nodeList.length; nodeId++) {
+                arr.push(nodeList.item(nodeId));
+            }
         }
-        return result.join("");
+        return arr;
+    }
+    /**
+     * An abstraction over native window.location.replace() to be able to suppress it for unit tests
+     *
+     * @param url The url to redirect to
+     */
+    function redirect(url) {
+        window.location = url;
     }
 
-    var DOM = /*#__PURE__*/Object.freeze({
-        show: show,
-        hide: hide,
-        toggleClass: toggleClass,
-        showIncrementally: showIncrementally,
-        hideIncrementally: hideIncrementally,
-        get: get,
-        inDoc: inDoc,
-        replace: replace,
-        serializeNodeChildren: serializeNodeChildren,
-        serializeNode: serializeNode,
-        containsElement: containsElement,
-        text: text
+    function create() {
+        return function () {
+            this.initialize.apply(this, arguments);
+        };
+    }
+
+    var Class = /*#__PURE__*/Object.freeze({
+        create: create
     });
+
+    exports.Browser = {
+        _isKHTML: null,
+        isKHTML: function () {
+            var wb = exports.Browser;
+            if (wb._isKHTML === null) {
+                wb._isKHTML = (/Konqueror|KHTML/).test(window.navigator.userAgent) && !/Apple/.test(window.navigator.userAgent);
+            }
+            return wb._isKHTML;
+        },
+        _isSafari: null,
+        isSafari: function () {
+            var wb = exports.Browser;
+            if (wb._isSafari === null) {
+                wb._isSafari = !/Chrome/.test(window.navigator.userAgent) && /KHTML/.test(window.navigator.userAgent) && /Apple/.test(window.navigator.userAgent);
+            }
+            return wb._isSafari;
+        },
+        _isChrome: null,
+        isChrome: function () {
+            var wb = exports.Browser;
+            if (wb._isChrome === null) {
+                wb._isChrome = (/KHTML/).test(window.navigator.userAgent) && /Apple/.test(window.navigator.userAgent) && /Chrome/.test(window.navigator.userAgent);
+            }
+            return wb._isChrome;
+        },
+        _isOpera: null,
+        isOpera: function () {
+            var wb = exports.Browser;
+            if (wb._isOpera === null) {
+                wb._isOpera = !exports.Browser.isSafari() && typeof (window["opera"]) !== "undefined";
+            }
+            return wb._isOpera;
+        },
+        _isIE: null,
+        isIE: function () {
+            var wb = exports.Browser;
+            if (wb._isIE === null) {
+                wb._isIE = !exports.Browser.isSafari() && (typeof (document.all) !== "undefined" || window.navigator.userAgent.indexOf("Trident/") > -1) && typeof (window["opera"]) === "undefined";
+            }
+            return wb._isIE;
+        },
+        _isIEQuirks: null,
+        isIEQuirks: function () {
+            var wb = exports.Browser;
+            if (wb._isIEQuirks === null) {
+                // is the browser internet explorer in quirks mode (we could use document.compatMode too)
+                wb._isIEQuirks = exports.Browser.isIE() && window.document.documentElement.clientHeight === 0;
+            }
+            return wb._isIEQuirks;
+        },
+        _isIELessThan9: null,
+        isIELessThan9: function () {
+            var wb = exports.Browser;
+            if (wb._isIELessThan9 === null) {
+                var index = window.navigator.userAgent.indexOf("MSIE");
+                var version = parseFloat(window.navigator.userAgent.substring(index + 5));
+                wb._isIELessThan9 = exports.Browser.isIE() && version < 9;
+            }
+            return wb._isIELessThan9;
+        },
+        _isIELessThan11: null,
+        isIELessThan11: function () {
+            var wb = exports.Browser;
+            if (wb._isIELessThan11 === null) {
+                wb._isIELessThan11 = !exports.Browser.isSafari() && typeof (document.all) !== "undefined" && typeof (window["opera"]) === "undefined";
+            }
+            return wb._isIELessThan11;
+        },
+        _isIE11: null,
+        isIE11: function () {
+            var wb = exports.Browser;
+            if (wb._isIE11 === null) {
+                var userAgent = window.navigator.userAgent;
+                var isTrident = userAgent.indexOf("Trident") > -1;
+                var is11 = userAgent.indexOf("rv:11") > -1;
+                wb._isIE11 = isTrident && is11;
+            }
+            return wb._isIE11;
+        },
+        _isGecko: null,
+        isGecko: function () {
+            var wb = exports.Browser;
+            if (wb._isGecko === null) {
+                wb._isGecko = (/Gecko/).test(window.navigator.userAgent) && !exports.Browser.isSafari();
+            }
+            return wb._isGecko;
+        }
+    };
 
     var idCounter = 0;
     function getId(element) {
-        var $el = jQuery(element), id = $el.prop("id");
+        var $el = jQuery(element);
+        var id = $el.prop("id");
         if (typeof (id) === "string" && id.length > 0) {
             return id;
         }
@@ -482,6 +473,563 @@ var Wicket = (function (exports) {
         get Topic () { return Topic; }
     });
 
+    /**
+     * DOM nodes serialization functionality
+     *
+     * The purpose of these methods is to return a string representation
+     * of the DOM tree.
+     */
+    function show(e, display) {
+        e = $(e);
+        if (e !== null) {
+            if (isUndef(display)) {
+                // no explicit 'display' value is requested so
+                // use jQuery. It has special logic to decide which is the
+                // best value for an HTMLElement
+                jQuery(e).show();
+            }
+            else {
+                e.style.display = display;
+            }
+        }
+    }
+    /** hides an element */
+    function hide(e) {
+        e = $(e);
+        if (e !== null) {
+            jQuery(e).hide();
+        }
+    }
+    /**
+     * Add or remove one or more classes from each element in the
+     * set of matched elements, depending on either the class's presence
+     * or the value of the switch argument.
+     *
+     * @param {String} elementId The markup id of the element that will be manipulated.
+     * @param {String} cssClass One or more class names (separated by spaces)
+     *        to be toggled for each element in the matched set.
+     * @param {Boolean} Switch A Boolean (not just truthy/falsy) value to
+     *        determine whether the class should be added or removed.
+     */
+    function toggleClass(elementId, cssClass, Switch) {
+        jQuery('#' + elementId).toggleClass(cssClass, Switch);
+    }
+    /** call-counting implementation of DOM.show() */
+    function showIncrementally(e) {
+        e = $(e);
+        if (e === null) {
+            return;
+        }
+        var count = e.getAttribute("showIncrementallyCount");
+        count = parseInt(isUndef(count) ? 0 : count, 10);
+        if (count >= 0) {
+            show(e);
+        }
+        e.setAttribute("showIncrementallyCount", count + 1);
+    }
+    /** call-counting implementation of DOM.hide() */
+    function hideIncrementally(e) {
+        e = $(e);
+        if (e === null) {
+            return;
+        }
+        var count = e.getAttribute("showIncrementallyCount");
+        count = parseInt(String(isUndef(count) ? 0 : count - 1), 10);
+        if (count <= 0) {
+            hide(e);
+        }
+        e.setAttribute("showIncrementallyCount", count);
+    }
+    function get(arg) {
+        return $(arg);
+    }
+    /**
+     * returns if the element belongs to current document
+     * if the argument is not element, function returns true
+     */
+    function inDoc(element) {
+        return $$(element);
+    }
+    /**
+     * A cross-browser method that replaces the markup of an element. The behavior
+     * is similar to calling element.outerHtml=text in internet explorer. However
+     * this method also takes care of executing javascripts within the markup on
+     * browsers that don't do that automatically.
+     * Also this method takes care of replacing table elements (tbody, tr, td, thead)
+     * on browser where it's not supported when using outerHTML (IE).
+     *
+     * This method sends notifications to all subscribers for channels with names
+     * '/dom/node/removing' with the element that is going to be replaced and
+     * '/dom/node/added' with the newly created element (the replacement).
+     *
+     * Note: the 'to be replaced' element must have an 'id' attribute
+     */
+    function replace(element, text) {
+        var we = Event;
+        var topic = we.Topic;
+        we.publish(topic.DOM_NODE_REMOVING, element);
+        if (element.tagName.toLowerCase() === "title") {
+            // match the text between the tags
+            var titleText = />(.*?)</.exec(text)[1];
+            document.title = titleText;
+            return;
+        }
+        else {
+            // jQuery 1.9+ expects '<' as the very first character in text
+            var cleanedText = jQuery.trim(text);
+            var $newElement = jQuery(cleanedText);
+            jQuery(element).replaceWith($newElement);
+        }
+        var newElement = $(element.id);
+        if (newElement) {
+            we.publish(topic.DOM_NODE_ADDED, newElement);
+        }
+    }
+    // Method for serializing DOM nodes to string
+    // original taken from Tacos (http://tacoscomponents.jot.com)
+    function serializeNodeChildren(node) {
+        if (isUndef(node)) {
+            return "";
+        }
+        var result = [];
+        if (node.childNodes.length > 0) {
+            for (var i = 0; i < node.childNodes.length; i++) {
+                var thisNode = node.childNodes[i];
+                switch (thisNode.nodeType) {
+                    case 1: // ELEMENT_NODE
+                    case 5: // ENTITY_REFERENCE_NODE
+                        result.push(this.serializeNode(thisNode));
+                        break;
+                    case 8: // COMMENT
+                        result.push("<!--");
+                        result.push(thisNode.nodeValue);
+                        result.push("-->");
+                        break;
+                    case 4: // CDATA_SECTION_NODE
+                        result.push("<![CDATA[");
+                        result.push(thisNode.nodeValue);
+                        result.push("]]>");
+                        break;
+                    case 3: // TEXT_NODE
+                    case 2: // ATTRIBUTE_NODE
+                        result.push(thisNode.nodeValue);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        else {
+            result.push(node.textContent || node.text);
+        }
+        return result.join("");
+    }
+    function serializeNode(node) {
+        if (isUndef(node)) {
+            return "";
+        }
+        var result = [];
+        result.push("<");
+        result.push(node.nodeName);
+        if (node.attributes && node.attributes.length > 0) {
+            for (var i = 0; i < node.attributes.length; i++) {
+                // serialize the attribute only if it has meaningful value that is not inherited
+                if (node.attributes[i].nodeValue && node.attributes[i].specified) {
+                    result.push(" ");
+                    result.push(node.attributes[i].name);
+                    result.push("=\"");
+                    result.push(node.attributes[i].value);
+                    result.push("\"");
+                }
+            }
+        }
+        result.push(">");
+        result.push(serializeNodeChildren(node));
+        result.push("</");
+        result.push(node.nodeName);
+        result.push(">");
+        return result.join("");
+    }
+    // Utility function that determines whether given element is part of the current document
+    function containsElement(element) {
+        var id = element.getAttribute("id");
+        if (id) {
+            return $(id) !== null;
+        }
+        else {
+            return false;
+        }
+    }
+    /**
+     * Reads the text from the node's children nodes.
+     * Used instead of jQuery.text() because it is very slow in IE10/11.
+     * WICKET-5132, WICKET-5510
+     * @param node {DOMElement} the root node
+     */
+    function text(node) {
+        if (isUndef(node)) {
+            return "";
+        }
+        var result = [];
+        if (node.childNodes.length > 0) {
+            for (var i = 0; i < node.childNodes.length; i++) {
+                var thisNode = node.childNodes[i];
+                switch (thisNode.nodeType) {
+                    case 1: // ELEMENT_NODE
+                    case 5: // ENTITY_REFERENCE_NODE
+                        result.push(this.text(thisNode));
+                        break;
+                    case 3: // TEXT_NODE
+                    case 4: // CDATA_SECTION_NODE
+                        result.push(thisNode.nodeValue);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        else {
+            result.push(node.textContent || node.text);
+        }
+        return result.join("");
+    }
+
+    var DOM = /*#__PURE__*/Object.freeze({
+        show: show,
+        hide: hide,
+        toggleClass: toggleClass,
+        showIncrementally: showIncrementally,
+        hideIncrementally: hideIncrementally,
+        get: get,
+        inDoc: inDoc,
+        replace: replace,
+        serializeNodeChildren: serializeNodeChildren,
+        serializeNode: serializeNode,
+        containsElement: containsElement,
+        text: text
+    });
+
+    var Focus = /** @class */ (function () {
+        function Focus() {
+        }
+        Focus.focusin = function (event) {
+            event = fix(event);
+            var target = event.target;
+            if (target) {
+                var WF = Focus;
+                WF.refocusLastFocusedComponentAfterResponse = false;
+                var id = target.id;
+                WF.lastFocusId = id;
+                Log.info("focus set on " + id);
+            }
+        };
+        Focus.focusout = function (event) {
+            event = fix(event);
+            var target = event.target;
+            var WF = Focus;
+            if (target && WF.lastFocusId === target.id) {
+                var id = target.id;
+                if (WF.refocusLastFocusedComponentAfterResponse) {
+                    // replaced components seem to blur when replaced only on Safari - so do not modify lastFocusId so it gets refocused
+                    Log.info("focus removed from " + id + " but ignored because of component replacement");
+                }
+                else {
+                    WF.lastFocusId = null;
+                    Log.info("focus removed from " + id);
+                }
+            }
+        };
+        Focus.getFocusedElement = function () {
+            var lastFocusId = Focus.lastFocusId;
+            if (lastFocusId) {
+                var focusedElement = $(lastFocusId);
+                Log.info("returned focused element: " + focusedElement);
+                return focusedElement;
+            }
+        };
+        Focus.setFocusOnId = function (id) {
+            var WF = Focus;
+            if (id) {
+                WF.refocusLastFocusedComponentAfterResponse = true;
+                WF.focusSetFromServer = true;
+                WF.lastFocusId = id;
+                Log.info("focus set on " + id + " from server side");
+            }
+            else {
+                WF.refocusLastFocusedComponentAfterResponse = false;
+                Log.info("refocus focused component after request stopped from server side");
+            }
+        };
+        // mark the focused component so that we know if it has been replaced or not by response
+        Focus.markFocusedComponent = function () {
+            var WF = Focus;
+            var focusedElement = WF.getFocusedElement();
+            if (focusedElement) {
+                // create a property of the focused element that would not remain there if component is replaced
+                focusedElement.wasFocusedBeforeComponentReplacements = true;
+                WF.refocusLastFocusedComponentAfterResponse = true;
+                WF.focusSetFromServer = false;
+            }
+            else {
+                WF.refocusLastFocusedComponentAfterResponse = false;
+            }
+        };
+        // detect if the focused component was replaced
+        Focus.checkFocusedComponentReplaced = function () {
+            var WF = Focus;
+            if (WF.refocusLastFocusedComponentAfterResponse) {
+                var focusedElement = WF.getFocusedElement();
+                if (focusedElement) {
+                    if (typeof (focusedElement.wasFocusedBeforeComponentReplacements) !== "undefined") {
+                        // focus component was not replaced - no need to refocus it
+                        WF.refocusLastFocusedComponentAfterResponse = false;
+                    }
+                }
+                else {
+                    // focused component dissapeared completely - no use to try to refocus it
+                    WF.refocusLastFocusedComponentAfterResponse = false;
+                    WF.lastFocusId = "";
+                }
+            }
+        };
+        Focus.requestFocus = function () {
+            // if the focused component is replaced by the ajax response, a re-focus might be needed
+            // (if focus was not changed from server) but if not, and the focus component should
+            // remain the same, do not re-focus - fixes problem on IE6 for combos that have
+            // the popup open (refocusing closes popup)
+            var WF = Focus;
+            if (WF.refocusLastFocusedComponentAfterResponse && WF.lastFocusId) {
+                var toFocus_1 = $(WF.lastFocusId);
+                if (toFocus_1) {
+                    Log.info("Calling focus on " + WF.lastFocusId);
+                    var safeFocus_1 = function () {
+                        try {
+                            toFocus_1.focus();
+                        }
+                        catch (ignore) {
+                            // WICKET-6209 IE fails if toFocus is disabled
+                        }
+                    };
+                    if (WF.focusSetFromServer) {
+                        // WICKET-5858
+                        window.setTimeout(safeFocus_1, 0);
+                    }
+                    else {
+                        // avoid loops like - onfocus triggering an event the modifies the tag => refocus => the event is triggered again
+                        var temp_1 = toFocus_1.onfocus;
+                        toFocus_1.onfocus = null;
+                        // IE needs setTimeout (it seems not to call onfocus sync. when focus() is called
+                        window.setTimeout(function () {
+                            safeFocus_1();
+                            toFocus_1.onfocus = temp_1;
+                        }, 0);
+                    }
+                }
+                else {
+                    WF.lastFocusId = "";
+                    Log.info("Couldn't set focus on element with id '" + WF.lastFocusId + "' because it is not in the page anymore");
+                }
+            }
+            else if (WF.refocusLastFocusedComponentAfterResponse) {
+                Log.info("last focus id was not set");
+            }
+            else {
+                Log.info("refocus last focused component not needed/allowed");
+            }
+            Focus.refocusLastFocusedComponentAfterResponse = false;
+        };
+        Focus.lastFocusId = "";
+        Focus.refocusLastFocusedComponentAfterResponse = false;
+        Focus.focusSetFromServer = false;
+        return Focus;
+    }());
+
+    function encode(text) {
+        if (window.encodeURIComponent) {
+            return window.encodeURIComponent(text);
+        }
+        else {
+            return window.escape(text);
+        }
+    }
+    /**
+     * Serializes HTMLFormSelectElement to URL encoded key=value string.
+     *
+     * @param select {HTMLFormSelectElement} - the form element to serialize
+     * @return an object of key -> value pair where 'value' can be an array of Strings if the select is .multiple,
+     *		or empty object if the form element is disabled.
+     */
+    function serializeSelect(select) {
+        var result = [];
+        if (select) {
+            var $select = jQuery(select);
+            if ($select.length > 0 && $select.prop('disabled') === false) {
+                var name_1 = $select.prop('name');
+                var values = $select.val();
+                if (jQuery.isArray(values)) {
+                    for (var v = 0; v < values.length; v++) {
+                        var value = values[v];
+                        result.push({ name: name_1, value: value });
+                    }
+                }
+                else {
+                    result.push({ name: name_1, value: values });
+                }
+            }
+        }
+        return result;
+    }
+    /**
+     * Serializes a form element to an array with a single element - an object
+     * with two keys - <em>name</em> and <em>value</em>.
+     *
+     * Example: [{"name": "searchTerm", "value": "abc"}].
+     *
+     * Note: this function intentionally ignores image and submit inputs.
+     *
+     * @param input {HtmlFormElement} - the form element to serialize
+     * @return the URL encoded key=value pair or empty string if the form element is disabled.
+     */
+    function serializeInput(input) {
+        var result = [];
+        if (input && input.type) {
+            var $input = jQuery(input);
+            if (input.type === 'file') {
+                for (var f = 0; f < input.files.length; f++) {
+                    result.push({ "name": input.name, "value": input.files[f] });
+                }
+            }
+            else if (!(input.type === 'image' || input.type === 'submit')) {
+                result = $input.serializeArray();
+            }
+        }
+        return result;
+    }
+    /**
+     * A hash of HTML form element to exclude from serialization
+     * As key the element's id is being used.
+     * As value - the string "true".
+     */
+    var excludeFromAjaxSerialization = {};
+    /**
+     * Serializes a form element by checking its type and delegating the work to
+     * a more specific function.
+     *
+     * The form element will be ignored if it is registered as excluded in
+     * <em>Wicket.Form.excludeFromAjaxSerialization</em>
+     *
+     * @param element {HTMLFormElement} - the form element to serialize. E.g. HTMLInputElement
+     * @param serializeRecursively {Boolean} - a flag indicating whether to collect (submit) the
+     * 			name/value pairs for all HTML form elements children of the HTML element with
+     * 			the JavaScript listener
+     * @return An array with a single element - an object with two keys - <em>name</em> and <em>value</em>.
+     */
+    function serializeElement(element, serializeRecursively) {
+        if (!element) {
+            return [];
+        }
+        else if (typeof (element) === 'string') {
+            element = $(element);
+        }
+        if (excludeFromAjaxSerialization && element.id && excludeFromAjaxSerialization[element.id] === "true") {
+            return [];
+        }
+        var tag = element.tagName.toLowerCase();
+        if (tag === "select") {
+            return serializeSelect(element);
+        }
+        else if (tag === "input" || tag === "textarea") {
+            return serializeInput(element);
+        }
+        else {
+            var result = [];
+            if (serializeRecursively) {
+                var elements = nodeListToArray(element.getElementsByTagName("input"));
+                elements = elements.concat(nodeListToArray(element.getElementsByTagName("select")));
+                elements = elements.concat(nodeListToArray(element.getElementsByTagName("textarea")));
+                for (var i = 0; i < elements.length; ++i) {
+                    var el = elements[i];
+                    if (el.name && el.name !== "") {
+                        result = result.concat(serializeElement(el, serializeRecursively));
+                    }
+                }
+            }
+            return result;
+        }
+    }
+    function serializeForm(form) {
+        var result = [], elements;
+        if (form) {
+            if (form.tagName.toLowerCase() === 'form') {
+                elements = form.elements;
+            }
+            else {
+                do {
+                    form = form.parentNode;
+                } while (form.tagName.toLowerCase() !== "form" && form.tagName.toLowerCase() !== "body");
+                elements = nodeListToArray(form.getElementsByTagName("input"));
+                elements = elements.concat(nodeListToArray(form.getElementsByTagName("select")));
+                elements = elements.concat(nodeListToArray(form.getElementsByTagName("textarea")));
+            }
+        }
+        for (var i = 0; i < elements.length; ++i) {
+            var el = elements[i];
+            if (el.name && el.name !== "") {
+                result = result.concat(serializeElement(el, false));
+            }
+        }
+        return result;
+    }
+    function serialize(element, dontTryToFindRootForm) {
+        if (typeof (element) === 'string') {
+            element = $(element);
+        }
+        if (element.tagName.toLowerCase() === "form") {
+            return serializeForm(element);
+        }
+        else {
+            // try to find a form in DOM parents
+            var elementBck = element;
+            if (dontTryToFindRootForm !== true) {
+                do {
+                    element = element.parentNode;
+                } while (element.tagName.toLowerCase() !== "form" && element.tagName.toLowerCase() !== "body");
+            }
+            if (element.tagName.toLowerCase() === "form") {
+                return serializeForm(element);
+            }
+            else {
+                // there is not form in dom hierarchy
+                // simulate it
+                var form = document.createElement("form");
+                var parent_1 = elementBck.parentNode;
+                parent_1.replaceChild(form, elementBck);
+                form.appendChild(elementBck);
+                var result = serializeForm(form);
+                parent_1.replaceChild(elementBck, form);
+                return result;
+            }
+        }
+    }
+
+    var Form = /*#__PURE__*/Object.freeze({
+        encode: encode,
+        serializeSelect: serializeSelect,
+        serializeInput: serializeInput,
+        excludeFromAjaxSerialization: excludeFromAjaxSerialization,
+        serializeElement: serializeElement,
+        serializeForm: serializeForm,
+        serialize: serialize
+    });
+
+    function parse(text) {
+        return parseXML(text);
+    }
+
+    var Xml = /*#__PURE__*/Object.freeze({
+        parse: parse
+    });
+
     var FunctionsExecuter = /** @class */ (function () {
         /**
          * Functions executer takes array of functions and executes them.
@@ -513,12 +1061,12 @@ var Wicket = (function (exports) {
         }
         FunctionsExecuter.prototype.processNext = function () {
             if (this.current < this.functions.length) {
-                var f, run;
-                f = this.functions[this.current];
+                var f_1, run = void 0;
+                f_1 = this.functions[this.current];
                 run = function () {
                     try {
                         var n = jQuery.proxy(this.notify, this);
-                        return f(n);
+                        return f_1(n);
                     }
                     catch (e) {
                         Log.error("FunctionsExecuter.processNext: " + e);
@@ -578,6 +1126,525 @@ var Wicket = (function (exports) {
         FunctionsExecuter.DEPTH_LIMIT = 1000;
         return FunctionsExecuter;
     }());
+
+    // Parses the header contribution element (returns a DOM tree with the contribution)
+    function parse$1(headerNode) {
+        // the header contribution is stored as CDATA section in the header-contribution element.
+        // even though we need to parse it (and we have aleady parsed the response), header
+        // contribution needs to be treated separately. The reason for this is that
+        // Konqueror crashes when it there is a <script element in the parsed string. So we
+        // need to replace that first
+        // get the header contribution text and unescape it if necessary
+        var text$1 = text(headerNode);
+        if (exports.Browser.isKHTML()) {
+            // konqueror crashes if there is a <script element in the xml, but <SCRIPT is fine.
+            text$1 = text$1.replace(/<script/g, "<SCRIPT");
+            text$1 = text$1.replace(/<\/script>/g, "</SCRIPT>");
+        }
+        // build a DOM tree of the contribution
+        var xmldoc = parse(text$1);
+        return xmldoc;
+    }
+    // checks whether the passed node is the special "parsererror"
+    // created by DOMParser if there is a error in XML parsing
+    // TODO: move out of the API section
+    function _checkParserError(node) {
+        var result = false;
+        if (!isUndef(node.tagName) && node.tagName.toLowerCase() === "parsererror") {
+            Log.error("Error in parsing: " + node.textContent);
+            result = true;
+        }
+        return result;
+    }
+    // Processes the parsed header contribution
+    function processContribution(context, headerNode) {
+        var xmldoc = this.parse(headerNode);
+        var rootNode = xmldoc.documentElement;
+        // Firefox and Opera reports the error in the documentElement
+        if (this._checkParserError(rootNode)) {
+            return;
+        }
+        // go through the individual elements and process them according to their type
+        for (var i = 0; i < rootNode.childNodes.length; i++) {
+            var node = rootNode.childNodes[i];
+            // Chromium reports the error as a child node
+            if (this._checkParserError(node)) {
+                return;
+            }
+            if (!isUndef(node.tagName)) {
+                var name_1 = node.tagName.toLowerCase();
+                // it is possible that a reference is surrounded by a <wicket:link
+                // in that case, we need to find the inner element
+                if (name_1 === "wicket:link") {
+                    for (var j = 0; j < node.childNodes.length; ++j) {
+                        var childNode = node.childNodes[j];
+                        // try to find a regular node inside wicket:link
+                        if (childNode.nodeType === 1) {
+                            node = childNode;
+                            name_1 = node.tagName.toLowerCase();
+                            break;
+                        }
+                    }
+                }
+                // process the element
+                if (name_1 === "link") {
+                    this.processLink(context, node);
+                }
+                else if (name_1 === "script") {
+                    this.processScript(context, node);
+                }
+                else if (name_1 === "style") {
+                    this.processStyle(context, node);
+                }
+                else if (name_1 === "meta") {
+                    this.processMeta(context, node);
+                }
+            }
+            else if (node.nodeType === 8) { // comment type
+                this.processComment(context, node);
+            }
+        }
+    }
+    // Process an external stylesheet element
+    function processLink(context, node) {
+        context.steps.push(function (notify) {
+            var res = containsElement$1(node, "href");
+            var oldNode = res.oldNode;
+            if (res.contains) {
+                // an element with same href attribute is in document, skip it
+                return FunctionsExecuter.DONE;
+            }
+            else if (oldNode) {
+                // remove another external element with the same id but different href
+                oldNode.parentNode.removeChild(oldNode);
+            }
+            // create link element
+            var css = createElement("link");
+            // copy supplied attributes only.
+            var attributes = jQuery(node).prop("attributes");
+            var $css = jQuery(css);
+            jQuery.each(attributes, function () {
+                $css.attr(this.name, this.value);
+            });
+            // add element to head
+            addElement(css);
+            // cross browser way to check when the css is loaded
+            // taken from http://www.backalleycoder.com/2011/03/20/link-tag-css-stylesheet-load-event/
+            // this makes a second GET request to the css but it gets it either from the cache or
+            // downloads just the first several bytes and realizes that the MIME is wrong and ignores the rest
+            var img = document.createElement('img');
+            var notifyCalled = false;
+            img.onerror = function () {
+                if (!notifyCalled) {
+                    notifyCalled = true;
+                    notify();
+                }
+            };
+            img.src = css.href;
+            if (img.complete) {
+                if (!notifyCalled) {
+                    notifyCalled = true;
+                    notify();
+                }
+            }
+            return FunctionsExecuter.ASYNC;
+        });
+    }
+    // Process an inline style element
+    function processStyle(context, node) {
+        context.steps.push(function (notify) {
+            // if element with same id is already in document, skip it
+            if (containsElement(node)) {
+                return FunctionsExecuter.DONE;
+            }
+            // serialize the style to string
+            var content = serializeNodeChildren(node);
+            // create stylesheet
+            if (exports.Browser.isIELessThan11()) {
+                try {
+                    document.createStyleSheet().cssText = content;
+                    return FunctionsExecuter.DONE;
+                }
+                catch (ignore) {
+                    var run = function () {
+                        try {
+                            document.createStyleSheet().cssText = content;
+                        }
+                        catch (e) {
+                            Log.error("Wicket.Head.Contributor.processStyle: " + e);
+                        }
+                        notify();
+                    };
+                    window.setTimeout(run, 1);
+                    return FunctionsExecuter.ASYNC;
+                }
+            }
+            else {
+                // create style element
+                var style = createElement("style");
+                // copy id attribute
+                style.id = node.getAttribute("id");
+                var textNode = document.createTextNode(content);
+                style.appendChild(textNode);
+                addElement(style);
+            }
+            // continue to next step
+            return FunctionsExecuter.DONE;
+        });
+    }
+    // Process a script element (both inline and external)
+    function processScript(context, node) {
+        context.steps.push(function (notify) {
+            if (!node.getAttribute("src") && containsElement(node)) {
+                // if an inline element with same id is already in document, skip it
+                return FunctionsExecuter.DONE;
+            }
+            else {
+                var res = containsElement$1(node, "src");
+                var oldNode = res.oldNode;
+                if (res.contains) {
+                    // an element with same src attribute is in document, skip it
+                    return FunctionsExecuter.DONE;
+                }
+                else if (oldNode) {
+                    // remove another external element with the same id but different src
+                    oldNode.parentNode.removeChild(oldNode);
+                }
+            }
+            // determine whether it is external javascript (has src attribute set)
+            var src = node.getAttribute("src");
+            if (src !== null && src !== "") {
+                // convert the XML node to DOM node
+                var scriptDomNode_1 = document.createElement("script");
+                var attrs = node.attributes;
+                for (var a = 0; a < attrs.length; a++) {
+                    var attr = attrs[a];
+                    scriptDomNode_1[attr.name] = attr.value;
+                }
+                var onScriptReady_1 = function () {
+                    notify();
+                };
+                // first check for feature support
+                if (typeof (scriptDomNode_1.onload) !== 'undefined') {
+                    scriptDomNode_1.onload = onScriptReady_1;
+                }
+                else if (typeof (scriptDomNode_1.onreadystatechange) !== 'undefined') {
+                    scriptDomNode_1.onreadystatechange = function () {
+                        if (scriptDomNode_1.readyState === 'loaded' || scriptDomNode_1.readyState === 'complete') {
+                            onScriptReady_1();
+                        }
+                    };
+                }
+                else if (exports.Browser.isGecko()) {
+                    // Firefox doesn't react on the checks above but still supports 'onload'
+                    scriptDomNode_1.onload = onScriptReady_1;
+                }
+                else {
+                    // as a final resort notify after the current function execution
+                    window.setTimeout(onScriptReady_1, 10);
+                }
+                addElement(scriptDomNode_1);
+                return FunctionsExecuter.ASYNC;
+            }
+            else {
+                // serialize the element content to string
+                var text = serializeNodeChildren(node);
+                // get rid of prefix and suffix, they are not eval-d correctly
+                text = text.replace(/^\n\/\*<!\[CDATA\[\*\/\n/, "");
+                text = text.replace(/\n\/\*\]\]>\*\/\n$/, "");
+                var id = node.getAttribute("id");
+                var type = node.getAttribute("type");
+                if (typeof (id) === "string" && id.length > 0) {
+                    // add javascript to document head
+                    addJavascript(text, id, "", type);
+                }
+                else {
+                    try {
+                        // do the evaluation in global scope
+                        window.eval(text);
+                    }
+                    catch (e) {
+                        Log.error("Wicket.Head.Contributor.processScript: " + e + ": eval -> " + text);
+                    }
+                }
+                // continue to next step
+                return FunctionsExecuter.DONE;
+            }
+        });
+    }
+    function processMeta(context, node) {
+        context.steps.push(function (notify) {
+            var meta = createElement("meta"), $meta = jQuery(meta), attrs = jQuery(node).prop("attributes"), name = node.getAttribute("name");
+            if (name) {
+                jQuery('meta[name="' + name + '"]').remove();
+            }
+            jQuery.each(attrs, function () {
+                $meta.attr(this.name, this.value);
+            });
+            addElement(meta);
+            return FunctionsExecuter.DONE;
+        });
+    }
+    // process (conditional) comments
+    function processComment(context, node) {
+        context.steps.push(function (notify) {
+            var comment = document.createComment(node.nodeValue);
+            addElement(comment);
+            return FunctionsExecuter.DONE;
+        });
+    }
+
+    var Contributor = /*#__PURE__*/Object.freeze({
+        parse: parse$1,
+        _checkParserError: _checkParserError,
+        processContribution: processContribution,
+        processLink: processLink,
+        processStyle: processStyle,
+        processScript: processScript,
+        processMeta: processMeta,
+        processComment: processComment
+    });
+
+    // Creates an element in document
+    function createElement(name) {
+        if (isUndef(name) || name === '') {
+            Log.error('Cannot create an element without a name');
+            return;
+        }
+        return document.createElement(name);
+    }
+    // Adds the element to page head
+    function addElement(element) {
+        var headItems = document.querySelector('head meta[name="wicket.header.items"]');
+        if (headItems) {
+            headItems.parentNode.insertBefore(element, headItems);
+        }
+        else {
+            var head = document.querySelector("head");
+            if (head) {
+                head.appendChild(element);
+            }
+        }
+    }
+    // Returns true, if the page head contains element that has attribute with
+    // name mandatoryAttribute same as the given element and their names match.
+    //
+    // e.g. Wicket.Head.containsElement(myElement, "src") return true, if there
+    // is an element in head that is of same type as myElement, and whose src
+    // attribute is same as myElement.src.
+    function containsElement$1(element, mandatoryAttribute) {
+        var attr = element.getAttribute(mandatoryAttribute);
+        if (isUndef(attr) || attr === "") {
+            return {
+                contains: false
+            };
+        }
+        var elementTagName = element.tagName.toLowerCase();
+        var elementId = element.getAttribute("id");
+        var head = document.getElementsByTagName("head")[0];
+        if (elementTagName === "script") {
+            head = document;
+        }
+        var nodes = head.getElementsByTagName(elementTagName);
+        for (var i = 0; i < nodes.length; ++i) {
+            var node = nodes[i];
+            // check node names and mandatory attribute values
+            // we also have to check for attribute name that is suffixed by "_".
+            // this is necessary for filtering script references
+            if (node.tagName.toLowerCase() === elementTagName) {
+                var loadedUrl = node.getAttribute(mandatoryAttribute);
+                var loadedUrl_ = node.getAttribute(mandatoryAttribute + "_");
+                if (loadedUrl === attr || loadedUrl_ === attr) {
+                    return {
+                        contains: true
+                    };
+                }
+                else if (elementId && elementId === node.getAttribute("id")) {
+                    return {
+                        contains: false,
+                        oldNode: node
+                    };
+                }
+            }
+        }
+        return {
+            contains: false
+        };
+    }
+    // Adds a javascript element to page header.
+    // The fakeSrc attribute is used to filter out duplicate javascript references.
+    // External javascripts are loaded using xmlhttprequest. Then a javascript element is created and the
+    // javascript body is used as text for the element. For javascript references, wicket uses the src
+    // attribute to filter out duplicates. However, since we set the body of the element, we can't assign
+    // also a src value. Therefore we put the url to the src_ (notice the underscore)  attribute.
+    // Wicket.Head.containsElement is aware of that and takes also the underscored attributes into account.
+    function addJavascript(content, id, fakeSrc, type) {
+        var script = createElement("script");
+        if (id) {
+            script.id = id;
+        }
+        // WICKET-5047: encloses the content with a try...catch... block if the content is javascript
+        // content is considered javascript if mime-type is empty (html5's default) or is 'text/javascript'
+        if (!type || type.toLowerCase() === "text/javascript") {
+            type = "text/javascript";
+            content = 'try{' + content + '}catch(e){Wicket.Log.error(e);}';
+        }
+        script.setAttribute("src_", fakeSrc);
+        script.setAttribute("type", type);
+        // set the javascript as element content
+        if (null === script.canHaveChildren || script.canHaveChildren) {
+            var textNode = document.createTextNode(content);
+            script.appendChild(textNode);
+        }
+        else {
+            script.text = content;
+        }
+        addElement(script);
+    }
+    // Goes through all script elements contained by the element and add them to head
+    function addJavascripts(element, contentFilter) {
+        function add(element) {
+            var src = element.getAttribute("src");
+            var type = element.getAttribute("type");
+            // if it is a reference, just add it to head
+            if (src !== null && src.length > 0) {
+                var e = document.createElement("script");
+                if (type) {
+                    e.setAttribute("type", type);
+                }
+                e.setAttribute("src", src);
+                addElement(e);
+            }
+            else {
+                var content = serializeNodeChildren(element);
+                if (isUndef(content) || content === "") {
+                    content = element.text;
+                }
+                if (typeof (contentFilter) === "function") {
+                    content = contentFilter(content);
+                }
+                addJavascript(content, element.id, "", type);
+            }
+        }
+        if (typeof (element) !== "undefined" &&
+            typeof (element.tagName) !== "undefined" &&
+            element.tagName.toLowerCase() === "script") {
+            add(element);
+        }
+        else {
+            // we need to check if there are any children, because Safari
+            // aborts when the element is a text node
+            if (element.childNodes.length > 0) {
+                var scripts = element.getElementsByTagName("script");
+                for (var i = 0; i < scripts.length; ++i) {
+                    add(scripts[i]);
+                }
+            }
+        }
+    }
+
+    var Head = /*#__PURE__*/Object.freeze({
+        Contributor: Contributor,
+        createElement: createElement,
+        addElement: addElement,
+        containsElement: containsElement$1,
+        addJavascript: addJavascript,
+        addJavascripts: addJavascripts
+    });
+
+    var Channel = /** @class */ (function () {
+        function Channel(name) {
+            var res = name.match(/^([^|]+)\|(d|s|a)$/);
+            if (isUndef(res)) {
+                this.name = '0'; // '0' is the default channel name
+                this.type = 's'; // default to stack/queue
+            }
+            else {
+                this.name = res[1];
+                this.type = res[2];
+            }
+            this.callbacks = [];
+            this.busy = false;
+        }
+        Channel.prototype.schedule = function (callback) {
+            if (this.busy === false) {
+                this.busy = true;
+                try {
+                    return callback();
+                }
+                catch (exception) {
+                    this.busy = false;
+                    Log.error("An error occurred while executing Ajax request:" + exception);
+                }
+            }
+            else {
+                var busyChannel = "Channel '" + this.name + "' is busy";
+                if (this.type === 's') { // stack/queue
+                    Log.info(busyChannel + " - scheduling the callback to be executed when the previous request finish.");
+                    this.callbacks.push(callback);
+                }
+                else if (this.type === 'd') { // drop
+                    Log.info(busyChannel + " - dropping all previous scheduled callbacks and scheduling a new one to be executed when the current request finish.");
+                    this.callbacks = [];
+                    this.callbacks.push(callback);
+                }
+                else if (this.type === 'a') { // active
+                    Log.info(busyChannel + " - ignoring the Ajax call because there is a running request.");
+                }
+                return null;
+            }
+        };
+        Channel.prototype.done = function () {
+            var callback = null;
+            if (this.callbacks.length > 0) {
+                callback = this.callbacks.shift();
+            }
+            if (callback !== null && typeof (callback) !== "undefined") {
+                Log.info("Calling postponed function...");
+                // we can't call the callback from this call-stack
+                // therefore we set it on timer event
+                window.setTimeout(callback, 1);
+            }
+            else {
+                this.busy = false;
+            }
+        };
+        return Channel;
+    }());
+
+    var ChannelManager = /** @class */ (function () {
+        function ChannelManager() {
+            this.channels = [];
+        }
+        // Schedules the callback to channel with given name.
+        ChannelManager.prototype.schedule = function (channel, callback) {
+            var parsed = new Channel(channel);
+            var c = this.channels[parsed.name];
+            if (isUndef(c)) {
+                c = parsed;
+                this.channels[c.name] = c;
+            }
+            else {
+                c.type = parsed.type;
+            }
+            return c.schedule(callback);
+        };
+        // Tells the ChannelManager that the current callback in channel with given name
+        // has finished processing and another scheduled callback can be executed (if any).
+        ChannelManager.prototype.done = function (channel) {
+            var parsed = new Channel(channel);
+            var c = this.channels[parsed.name];
+            if (!isUndef(c)) {
+                c.done();
+                if (!c.busy) {
+                    delete this.channels[parsed.name];
+                }
+            }
+        };
+        ChannelManager.FunctionsExecuter = FunctionsExecuter;
+        return ChannelManager;
+    }());
+    var channelManager = new ChannelManager();
 
     var Call = /** @class */ (function () {
         function Call() {
@@ -1226,7 +2293,7 @@ var Wicket = (function (exports) {
        to happen at X milliseconds after the *last* call to throttle.
        If the parameter is not set, or set to false, then the timer is not reset. */
         function Throttler(postponeTimerOnUpdate) {
-            this.postponeTimerOnUpdate = postponeTimerOnUpdate;
+            this.postponeTimerOnUpdate = postponeTimerOnUpdate || false;
         }
         Throttler.prototype.throttle = function (id, millis, func) {
             var entries = Throttler.entries;
@@ -1261,68 +2328,18 @@ var Wicket = (function (exports) {
         Throttler.entries = [];
         return Throttler;
     }());
-
-    var Channel = /** @class */ (function () {
-        function Channel(name) {
-            var res = name.match(/^([^|]+)\|(d|s|a)$/);
-            if (isUndef(res)) {
-                this.name = '0'; // '0' is the default channel name
-                this.type = 's'; // default to stack/queue
-            }
-            else {
-                this.name = res[1];
-                this.type = res[2];
-            }
-            this.callbacks = [];
-            this.busy = false;
-        }
-        Channel.prototype.schedule = function (callback) {
-            if (this.busy === false) {
-                this.busy = true;
-                try {
-                    return callback();
-                }
-                catch (exception) {
-                    this.busy = false;
-                    Log.error("An error occurred while executing Ajax request:" + exception);
-                }
-            }
-            else {
-                var busyChannel = "Channel '" + this.name + "' is busy";
-                if (this.type === 's') { // stack/queue
-                    Log.info(busyChannel + " - scheduling the callback to be executed when the previous request finish.");
-                    this.callbacks.push(callback);
-                }
-                else if (this.type === 'd') { // drop
-                    Log.info(busyChannel + " - dropping all previous scheduled callbacks and scheduling a new one to be executed when the current request finish.");
-                    this.callbacks = [];
-                    this.callbacks.push(callback);
-                }
-                else if (this.type === 'a') { // active
-                    Log.info(busyChannel + " - ignoring the Ajax call because there is a running request.");
-                }
-                return null;
-            }
-        };
-        Channel.prototype.done = function () {
-            var callback = null;
-            if (this.callbacks.length > 0) {
-                callback = this.callbacks.shift();
-            }
-            if (callback !== null && typeof (callback) !== "undefined") {
-                Log.info("Calling postponed function...");
-                // we can't call the callback from this call-stack
-                // therefore we set it on timer event
-                window.setTimeout(callback, 1);
-            }
-            else {
-                this.busy = false;
-            }
-        };
-        return Channel;
-    }());
+    var throttler = new Throttler();
 
     var baseUrl = undefined;
+    /**
+     * A safe getter for Wicket's Ajax base URL.
+     * If the value is not defined or is empty string then
+     * return '.' (current folder) as base URL.
+     * Used for request header and parameter
+     */
+    function getAjaxBaseUrl() {
+        return '.';
+    }
     function _handleEventCancelation(attrs) {
         var evt = attrs.event;
         if (evt) {
@@ -1390,17 +2407,10 @@ var Wicket = (function (exports) {
         var call = new Call();
         call.process(data);
     }
-    /**
-     * An abstraction over native window.location.replace() to be able to suppress it for unit tests
-     *
-     * @param url The url to redirect to
-     */
-    function redirect(url) {
-        window.location = url;
-    }
 
     var Ajax = /*#__PURE__*/Object.freeze({
         baseUrl: baseUrl,
+        getAjaxBaseUrl: getAjaxBaseUrl,
         _handleEventCancelation: _handleEventCancelation,
         get: get$1,
         post: post,
@@ -1410,1011 +2420,142 @@ var Wicket = (function (exports) {
         Channel: Channel
     });
 
-    var ChannelManager = /** @class */ (function () {
-        function ChannelManager() {
-            this.channels = [];
-        }
-        // Schedules the callback to channel with given name.
-        ChannelManager.prototype.schedule = function (channel, callback) {
-            var parsed = new Channel(channel);
-            var c = this.channels[parsed.name];
-            if (isUndef(c)) {
-                c = parsed;
-                this.channels[c.name] = c;
+    var TimerHandles = {};
+    /**
+     * Manages the functionality needed by AbstractAjaxTimerBehavior and its subclasses
+     */
+    var Timer = {
+        /**
+         * Schedules a timer
+         * @param {string} timerId - the identifier for the timer
+         * @param {function} f - the JavaScript function to execute after the timeout
+         * @param {number} delay - the timeout
+         */
+        'set': function (timerId, f, delay) {
+            // if (typeof(TimerHandles) === 'undefined') {
+            //     TimerHandles = {};
+            // }
+            Timer.clear(timerId);
+            TimerHandles[timerId] = setTimeout(function () {
+                Timer.clear(timerId);
+                f();
+            }, delay);
+        },
+        /**
+         * Clears a timer by its id
+         * @param {string} timerId - the identifier of the timer
+         */
+        clear: function (timerId) {
+            if (TimerHandles && TimerHandles[timerId]) {
+                clearTimeout(TimerHandles[timerId]);
+                delete TimerHandles[timerId];
             }
-            else {
-                c.type = parsed.type;
-            }
-            return c.schedule(callback);
-        };
-        // Tells the ChannelManager that the current callback in channel with given name
-        // has finished processing and another scheduled callback can be executed (if any).
-        ChannelManager.prototype.done = function (channel) {
-            var parsed = new Channel(channel);
-            var c = this.channels[parsed.name];
-            if (!isUndef(c)) {
-                c.done();
-                if (!c.busy) {
-                    delete this.channels[parsed.name];
+        },
+        /**
+         * Clear all remaining timers.
+         */
+        clearAll: function () {
+            var WTH = TimerHandles;
+            if (WTH) {
+                for (var th in WTH) {
+                    if (WTH.hasOwnProperty(th)) {
+                        Timer.clear(th);
+                    }
                 }
             }
-        };
-        ChannelManager.FunctionsExecuter = FunctionsExecuter;
-        return ChannelManager;
-    }());
-
-    exports.Browser = {
-        _isKHTML: null,
-        isKHTML: function () {
-            var wb = exports.Browser;
-            if (wb._isKHTML === null) {
-                wb._isKHTML = (/Konqueror|KHTML/).test(window.navigator.userAgent) && !/Apple/.test(window.navigator.userAgent);
-            }
-            return wb._isKHTML;
-        },
-        _isSafari: null,
-        isSafari: function () {
-            var wb = exports.Browser;
-            if (wb._isSafari === null) {
-                wb._isSafari = !/Chrome/.test(window.navigator.userAgent) && /KHTML/.test(window.navigator.userAgent) && /Apple/.test(window.navigator.userAgent);
-            }
-            return wb._isSafari;
-        },
-        _isChrome: null,
-        isChrome: function () {
-            var wb = exports.Browser;
-            if (wb._isChrome === null) {
-                wb._isChrome = (/KHTML/).test(window.navigator.userAgent) && /Apple/.test(window.navigator.userAgent) && /Chrome/.test(window.navigator.userAgent);
-            }
-            return wb._isChrome;
-        },
-        _isOpera: null,
-        isOpera: function () {
-            var wb = exports.Browser;
-            if (wb._isOpera === null) {
-                wb._isOpera = !exports.Browser.isSafari() && typeof (window["opera"]) !== "undefined";
-            }
-            return wb._isOpera;
-        },
-        _isIE: null,
-        isIE: function () {
-            var wb = exports.Browser;
-            if (wb._isIE === null) {
-                wb._isIE = !exports.Browser.isSafari() && (typeof (document.all) !== "undefined" || window.navigator.userAgent.indexOf("Trident/") > -1) && typeof (window["opera"]) === "undefined";
-            }
-            return wb._isIE;
-        },
-        _isIEQuirks: null,
-        isIEQuirks: function () {
-            var wb = exports.Browser;
-            if (wb._isIEQuirks === null) {
-                // is the browser internet explorer in quirks mode (we could use document.compatMode too)
-                wb._isIEQuirks = exports.Browser.isIE() && window.document.documentElement.clientHeight === 0;
-            }
-            return wb._isIEQuirks;
-        },
-        _isIELessThan9: null,
-        isIELessThan9: function () {
-            var wb = exports.Browser;
-            if (wb._isIELessThan9 === null) {
-                var index = window.navigator.userAgent.indexOf("MSIE");
-                var version = parseFloat(window.navigator.userAgent.substring(index + 5));
-                wb._isIELessThan9 = exports.Browser.isIE() && version < 9;
-            }
-            return wb._isIELessThan9;
-        },
-        _isIELessThan11: null,
-        isIELessThan11: function () {
-            var wb = exports.Browser;
-            if (wb._isIELessThan11 === null) {
-                wb._isIELessThan11 = !exports.Browser.isSafari() && typeof (document.all) !== "undefined" && typeof (window["opera"]) === "undefined";
-            }
-            return wb._isIELessThan11;
-        },
-        _isIE11: null,
-        isIE11: function () {
-            var wb = exports.Browser;
-            if (wb._isIE11 === null) {
-                var userAgent = window.navigator.userAgent;
-                var isTrident = userAgent.indexOf("Trident") > -1;
-                var is11 = userAgent.indexOf("rv:11") > -1;
-                wb._isIE11 = isTrident && is11;
-            }
-            return wb._isIE11;
-        },
-        _isGecko: null,
-        isGecko: function () {
-            var wb = exports.Browser;
-            if (wb._isGecko === null) {
-                wb._isGecko = (/Gecko/).test(window.navigator.userAgent) && !exports.Browser.isSafari();
-            }
-            return wb._isGecko;
         }
     };
 
-    var Log = /** @class */ (function () {
-        function Log() {
-        }
-        Log.enabled = function () {
-            return false;
-        };
-        Log.info = function (msg) {
-            if (Log.enabled()) {
-                console.info("Wicket.Ajax:", msg);
-            }
-        };
-        Log.error = function (msg) {
-            console.error('Wicket.Ajax: ', msg);
-        };
-        Log.log = function (msg) {
-            if (Log.enabled()) {
-                console.log('Wicket.Ajax: ', msg);
-            }
-        };
-        return Log;
-    }());
-
-    function parse(text) {
-        var xmlDocument;
-        if (window.DOMParser) {
-            var parser = new DOMParser();
-            xmlDocument = parser.parseFromString(text, "text/xml");
-        }
-        else if (window.ActiveXObject) {
-            try {
-                xmlDocument = new ActiveXObject("Msxml2.DOMDocument.6.0");
-            }
-            catch (err6) {
-                try {
-                    xmlDocument = new ActiveXObject("Msxml2.DOMDocument.5.0");
-                }
-                catch (err5) {
-                    try {
-                        xmlDocument = new ActiveXObject("Msxml2.DOMDocument.4.0");
-                    }
-                    catch (err4) {
-                        try {
-                            xmlDocument = new ActiveXObject("MSXML2.DOMDocument.3.0");
-                        }
-                        catch (err3) {
-                            try {
-                                xmlDocument = new ActiveXObject("Microsoft.XMLDOM");
-                            }
-                            catch (err2) {
-                                Log.error("Cannot create DOM document: " + err2);
-                            }
-                        }
-                    }
-                }
-            }
-            if (xmlDocument) {
-                xmlDocument.async = "false";
-                if (!xmlDocument.loadXML(text)) {
-                    Log.error("Error parsing response: " + text);
-                }
-            }
-        }
-        return xmlDocument;
-    }
-
-    var Xml = /*#__PURE__*/Object.freeze({
-        parse: parse
-    });
-
-    function encode(text) {
-        if (window.encodeURIComponent) {
-            return window.encodeURIComponent(text);
-        }
-        else {
-            return window.escape(text);
-        }
-    }
     /**
-     * Serializes HTMLFormSelectElement to URL encoded key=value string.
-     *
-     * @param select {HTMLFormSelectElement} - the form element to serialize
-     * @return an object of key -> value pair where 'value' can be an array of Strings if the select is .multiple,
-     *		or empty object if the form element is disabled.
+     * A special event that is used to listen for immediate changes in input fields.
      */
-    function serializeSelect(select) {
-        var result = [];
-        if (select) {
-            var $select = jQuery(select);
-            if ($select.length > 0 && $select.prop('disabled') === false) {
-                var name = $select.prop('name');
-                var values = $select.val();
-                if (jQuery.isArray(values)) {
-                    for (var v = 0; v < values.length; v++) {
-                        var value = values[v];
-                        result.push({ name: name, value: value });
-                    }
-                }
-                else {
-                    result.push({ name: name, value: values });
-                }
-            }
-        }
-        return result;
-    }
-    /**
-     * Serializes a form element to an array with a single element - an object
-     * with two keys - <em>name</em> and <em>value</em>.
-     *
-     * Example: [{"name": "searchTerm", "value": "abc"}].
-     *
-     * Note: this function intentionally ignores image and submit inputs.
-     *
-     * @param input {HtmlFormElement} - the form element to serialize
-     * @return the URL encoded key=value pair or empty string if the form element is disabled.
-     */
-    function serializeInput(input) {
-        var result = [];
-        if (input && input.type) {
-            var $input = jQuery(input);
-            if (input.type === 'file') {
-                for (var f = 0; f < input.files.length; f++) {
-                    result.push({ "name": input.name, "value": input.files[f] });
-                }
-            }
-            else if (!(input.type === 'image' || input.type === 'submit')) {
-                result = $input.serializeArray();
-            }
-        }
-        return result;
-    }
-    /**
-     * A hash of HTML form element to exclude from serialization
-     * As key the element's id is being used.
-     * As value - the string "true".
-     */
-    var excludeFromAjaxSerialization = {};
-    /**
-     * Serializes a form element by checking its type and delegating the work to
-     * a more specific function.
-     *
-     * The form element will be ignored if it is registered as excluded in
-     * <em>Wicket.Form.excludeFromAjaxSerialization</em>
-     *
-     * @param element {HTMLFormElement} - the form element to serialize. E.g. HTMLInputElement
-     * @param serializeRecursively {Boolean} - a flag indicating whether to collect (submit) the
-     * 			name/value pairs for all HTML form elements children of the HTML element with
-     * 			the JavaScript listener
-     * @return An array with a single element - an object with two keys - <em>name</em> and <em>value</em>.
-     */
-    function serializeElement(element, serializeRecursively) {
-        if (!element) {
-            return [];
-        }
-        else if (typeof (element) === 'string') {
-            element = $(element);
-        }
-        if (excludeFromAjaxSerialization && element.id && excludeFromAjaxSerialization[element.id] === "true") {
-            return [];
-        }
-        var tag = element.tagName.toLowerCase();
-        if (tag === "select") {
-            return serializeSelect(element);
-        }
-        else if (tag === "input" || tag === "textarea") {
-            return serializeInput(element);
-        }
-        else {
-            var result = [];
-            if (serializeRecursively) {
-                var elements = nodeListToArray(element.getElementsByTagName("input"));
-                elements = elements.concat(nodeListToArray(element.getElementsByTagName("select")));
-                elements = elements.concat(nodeListToArray(element.getElementsByTagName("textarea")));
-                for (var i = 0; i < elements.length; ++i) {
-                    var el = elements[i];
-                    if (el.name && el.name !== "") {
-                        result = result.concat(serializeElement(el, serializeRecursively));
-                    }
-                }
-            }
-            return result;
-        }
-    }
-    function serializeForm(form) {
-        var result = [], elements;
-        if (form) {
-            if (form.tagName.toLowerCase() === 'form') {
-                elements = form.elements;
-            }
-            else {
-                do {
-                    form = form.parentNode;
-                } while (form.tagName.toLowerCase() !== "form" && form.tagName.toLowerCase() !== "body");
-                elements = nodeListToArray(form.getElementsByTagName("input"));
-                elements = elements.concat(nodeListToArray(form.getElementsByTagName("select")));
-                elements = elements.concat(nodeListToArray(form.getElementsByTagName("textarea")));
-            }
-        }
-        for (var i = 0; i < elements.length; ++i) {
-            var el = elements[i];
-            if (el.name && el.name !== "") {
-                result = result.concat(serializeElement(el, false));
-            }
-        }
-        return result;
-    }
-    function serialize(element, dontTryToFindRootForm) {
-        if (typeof (element) === 'string') {
-            element = $(element);
-        }
-        if (element.tagName.toLowerCase() === "form") {
-            return serializeForm(element);
-        }
-        else {
-            // try to find a form in DOM parents
-            var elementBck = element;
-            if (dontTryToFindRootForm !== true) {
-                do {
-                    element = element.parentNode;
-                } while (element.tagName.toLowerCase() !== "form" && element.tagName.toLowerCase() !== "body");
-            }
-            if (element.tagName.toLowerCase() === "form") {
-                return serializeForm(element);
-            }
-            else {
-                // there is not form in dom hierarchy
-                // simulate it
-                var form = document.createElement("form");
-                var parent = elementBck.parentNode;
-                parent.replaceChild(form, elementBck);
-                form.appendChild(elementBck);
-                var result = serializeForm(form);
-                parent.replaceChild(elementBck, form);
-                return result;
-            }
-        }
-    }
-
-    var Form = /*#__PURE__*/Object.freeze({
-        encode: encode,
-        serializeSelect: serializeSelect,
-        serializeInput: serializeInput,
-        excludeFromAjaxSerialization: excludeFromAjaxSerialization,
-        serializeElement: serializeElement,
-        serializeForm: serializeForm,
-        serialize: serialize
-    });
-
-    // Parses the header contribution element (returns a DOM tree with the contribution)
-    function parse$1(headerNode) {
-        // the header contribution is stored as CDATA section in the header-contribution element.
-        // even though we need to parse it (and we have aleady parsed the response), header
-        // contribution needs to be treated separately. The reason for this is that
-        // Konqueror crashes when it there is a <script element in the parsed string. So we
-        // need to replace that first
-        // get the header contribution text and unescape it if necessary
-        var text$1 = text(headerNode);
-        if (exports.Browser.isKHTML()) {
-            // konqueror crashes if there is a <script element in the xml, but <SCRIPT is fine.
-            text$1 = text$1.replace(/<script/g, "<SCRIPT");
-            text$1 = text$1.replace(/<\/script>/g, "</SCRIPT>");
-        }
-        // build a DOM tree of the contribution
-        var xmldoc = parse(text$1);
-        return xmldoc;
-    }
-    // checks whether the passed node is the special "parsererror"
-    // created by DOMParser if there is a error in XML parsing
-    // TODO: move out of the API section
-    function _checkParserError(node) {
-        var result = false;
-        if (!isUndef(node.tagName) && node.tagName.toLowerCase() === "parsererror") {
-            Log.error("Error in parsing: " + node.textContent);
-            result = true;
-        }
-        return result;
-    }
-    // Processes the parsed header contribution
-    function processContribution(context, headerNode) {
-        var xmldoc = this.parse(headerNode);
-        var rootNode = xmldoc.documentElement;
-        // Firefox and Opera reports the error in the documentElement
-        if (this._checkParserError(rootNode)) {
-            return;
-        }
-        // go through the individual elements and process them according to their type
-        for (var i = 0; i < rootNode.childNodes.length; i++) {
-            var node = rootNode.childNodes[i];
-            // Chromium reports the error as a child node
-            if (this._checkParserError(node)) {
-                return;
-            }
-            if (!isUndef(node.tagName)) {
-                var name = node.tagName.toLowerCase();
-                // it is possible that a reference is surrounded by a <wicket:link
-                // in that case, we need to find the inner element
-                if (name === "wicket:link") {
-                    for (var j = 0; j < node.childNodes.length; ++j) {
-                        var childNode = node.childNodes[j];
-                        // try to find a regular node inside wicket:link
-                        if (childNode.nodeType === 1) {
-                            node = childNode;
-                            name = node.tagName.toLowerCase();
-                            break;
-                        }
-                    }
-                }
-                // process the element
-                if (name === "link") {
-                    this.processLink(context, node);
-                }
-                else if (name === "script") {
-                    this.processScript(context, node);
-                }
-                else if (name === "style") {
-                    this.processStyle(context, node);
-                }
-                else if (name === "meta") {
-                    this.processMeta(context, node);
-                }
-            }
-            else if (node.nodeType === 8) { // comment type
-                this.processComment(context, node);
-            }
-        }
-    }
-    // Process an external stylesheet element
-    function processLink(context, node) {
-        context.steps.push(function (notify) {
-            var res = containsElement$1(node, "href");
-            var oldNode = res.oldNode;
-            if (res.contains) {
-                // an element with same href attribute is in document, skip it
-                return FunctionsExecuter.DONE;
-            }
-            else if (oldNode) {
-                // remove another external element with the same id but different href
-                oldNode.parentNode.removeChild(oldNode);
-            }
-            // create link element
-            var css = createElement("link");
-            // copy supplied attributes only.
-            var attributes = jQuery(node).prop("attributes");
-            var $css = jQuery(css);
-            jQuery.each(attributes, function () {
-                $css.attr(this.name, this.value);
-            });
-            // add element to head
-            addElement(css);
-            // cross browser way to check when the css is loaded
-            // taken from http://www.backalleycoder.com/2011/03/20/link-tag-css-stylesheet-load-event/
-            // this makes a second GET request to the css but it gets it either from the cache or
-            // downloads just the first several bytes and realizes that the MIME is wrong and ignores the rest
-            var img = document.createElement('img');
-            var notifyCalled = false;
-            img.onerror = function () {
-                if (!notifyCalled) {
-                    notifyCalled = true;
-                    notify();
-                }
-            };
-            img.src = css.href;
-            if (img.complete) {
-                if (!notifyCalled) {
-                    notifyCalled = true;
-                    notify();
-                }
-            }
-            return FunctionsExecuter.ASYNC;
-        });
-    }
-    // Process an inline style element
-    function processStyle(context, node) {
-        context.steps.push(function (notify) {
-            // if element with same id is already in document, skip it
-            if (containsElement(node)) {
-                return FunctionsExecuter.DONE;
-            }
-            // serialize the style to string
-            var content = serializeNodeChildren(node);
-            // create stylesheet
-            if (exports.Browser.isIELessThan11()) {
-                try {
-                    document.createStyleSheet().cssText = content;
-                    return FunctionsExecuter.DONE;
-                }
-                catch (ignore) {
-                    var run = function () {
-                        try {
-                            document.createStyleSheet().cssText = content;
-                        }
-                        catch (e) {
-                            Log.error("Wicket.Head.Contributor.processStyle: " + e);
-                        }
-                        notify();
-                    };
-                    window.setTimeout(run, 1);
-                    return FunctionsExecuter.ASYNC;
-                }
-            }
-            else {
-                // create style element
-                var style = createElement("style");
-                // copy id attribute
-                style.id = node.getAttribute("id");
-                var textNode = document.createTextNode(content);
-                style.appendChild(textNode);
-                addElement(style);
-            }
-            // continue to next step
-            return FunctionsExecuter.DONE;
-        });
-    }
-    // Process a script element (both inline and external)
-    function processScript(context, node) {
-        context.steps.push(function (notify) {
-            if (!node.getAttribute("src") && containsElement(node)) {
-                // if an inline element with same id is already in document, skip it
-                return FunctionsExecuter.DONE;
-            }
-            else {
-                var res = containsElement$1(node, "src");
-                var oldNode = res.oldNode;
-                if (res.contains) {
-                    // an element with same src attribute is in document, skip it
-                    return FunctionsExecuter.DONE;
-                }
-                else if (oldNode) {
-                    // remove another external element with the same id but different src
-                    oldNode.parentNode.removeChild(oldNode);
-                }
-            }
-            // determine whether it is external javascript (has src attribute set)
-            var src = node.getAttribute("src");
-            if (src !== null && src !== "") {
-                // convert the XML node to DOM node
-                var scriptDomNode = document.createElement("script");
-                var attrs = node.attributes;
-                for (var a = 0; a < attrs.length; a++) {
-                    var attr = attrs[a];
-                    scriptDomNode[attr.name] = attr.value;
-                }
-                var onScriptReady = function () {
-                    notify();
-                };
-                // first check for feature support
-                if (typeof (scriptDomNode.onload) !== 'undefined') {
-                    scriptDomNode.onload = onScriptReady;
-                }
-                else if (typeof (scriptDomNode.onreadystatechange) !== 'undefined') {
-                    scriptDomNode.onreadystatechange = function () {
-                        if (scriptDomNode.readyState === 'loaded' || scriptDomNode.readyState === 'complete') {
-                            onScriptReady();
-                        }
-                    };
-                }
-                else if (exports.Browser.isGecko()) {
-                    // Firefox doesn't react on the checks above but still supports 'onload'
-                    scriptDomNode.onload = onScriptReady;
-                }
-                else {
-                    // as a final resort notify after the current function execution
-                    window.setTimeout(onScriptReady, 10);
-                }
-                addElement(scriptDomNode);
-                return FunctionsExecuter.ASYNC;
-            }
-            else {
-                // serialize the element content to string
-                var text = serializeNodeChildren(node);
-                // get rid of prefix and suffix, they are not eval-d correctly
-                text = text.replace(/^\n\/\*<!\[CDATA\[\*\/\n/, "");
-                text = text.replace(/\n\/\*\]\]>\*\/\n$/, "");
-                var id = node.getAttribute("id");
-                var type = node.getAttribute("type");
-                if (typeof (id) === "string" && id.length > 0) {
-                    // add javascript to document head
-                    addJavascript(text, id, "", type);
-                }
-                else {
-                    try {
-                        // do the evaluation in global scope
-                        window.eval(text);
-                    }
-                    catch (e) {
-                        Log.error("Wicket.Head.Contributor.processScript: " + e + ": eval -> " + text);
-                    }
-                }
-                // continue to next step
-                return FunctionsExecuter.DONE;
-            }
-        });
-    }
-    function processMeta(context, node) {
-        context.steps.push(function (notify) {
-            var meta = createElement("meta"), $meta = jQuery(meta), attrs = jQuery(node).prop("attributes"), name = node.getAttribute("name");
-            if (name) {
-                jQuery('meta[name="' + name + '"]').remove();
-            }
-            jQuery.each(attrs, function () {
-                $meta.attr(this.name, this.value);
-            });
-            addElement(meta);
-            return FunctionsExecuter.DONE;
-        });
-    }
-    // process (conditional) comments
-    function processComment(context, node) {
-        context.steps.push(function (notify) {
-            var comment = document.createComment(node.nodeValue);
-            addElement(comment);
-            return FunctionsExecuter.DONE;
-        });
-    }
-
-    var Contributor = /*#__PURE__*/Object.freeze({
-        parse: parse$1,
-        _checkParserError: _checkParserError,
-        processContribution: processContribution,
-        processLink: processLink,
-        processStyle: processStyle,
-        processScript: processScript,
-        processMeta: processMeta,
-        processComment: processComment
-    });
-
-    // Creates an element in document
-    function createElement(name) {
-        if (isUndef(name) || name === '') {
-            Log.error('Cannot create an element without a name');
-            return;
-        }
-        return document.createElement(name);
-    }
-    // Adds the element to page head
-    function addElement(element) {
-        var headItems = document.querySelector('head meta[name="wicket.header.items"]');
-        if (headItems) {
-            headItems.parentNode.insertBefore(element, headItems);
-        }
-        else {
-            var head = document.querySelector("head");
-            if (head) {
-                head.appendChild(element);
-            }
-        }
-    }
-    // Returns true, if the page head contains element that has attribute with
-    // name mandatoryAttribute same as the given element and their names match.
-    //
-    // e.g. Wicket.Head.containsElement(myElement, "src") return true, if there
-    // is an element in head that is of same type as myElement, and whose src
-    // attribute is same as myElement.src.
-    function containsElement$1(element, mandatoryAttribute) {
-        var attr = element.getAttribute(mandatoryAttribute);
-        if (isUndef(attr) || attr === "") {
-            return {
-                contains: false
-            };
-        }
-        var elementTagName = element.tagName.toLowerCase();
-        var elementId = element.getAttribute("id");
-        var head = document.getElementsByTagName("head")[0];
-        if (elementTagName === "script") {
-            head = document;
-        }
-        var nodes = head.getElementsByTagName(elementTagName);
-        for (var i = 0; i < nodes.length; ++i) {
-            var node = nodes[i];
-            // check node names and mandatory attribute values
-            // we also have to check for attribute name that is suffixed by "_".
-            // this is necessary for filtering script references
-            if (node.tagName.toLowerCase() === elementTagName) {
-                var loadedUrl = node.getAttribute(mandatoryAttribute);
-                var loadedUrl_ = node.getAttribute(mandatoryAttribute + "_");
-                if (loadedUrl === attr || loadedUrl_ === attr) {
-                    return {
-                        contains: true
-                    };
-                }
-                else if (elementId && elementId === node.getAttribute("id")) {
-                    return {
-                        contains: false,
-                        oldNode: node
-                    };
-                }
-            }
-        }
-        return {
-            contains: false
-        };
-    }
-    // Adds a javascript element to page header.
-    // The fakeSrc attribute is used to filter out duplicate javascript references.
-    // External javascripts are loaded using xmlhttprequest. Then a javascript element is created and the
-    // javascript body is used as text for the element. For javascript references, wicket uses the src
-    // attribute to filter out duplicates. However, since we set the body of the element, we can't assign
-    // also a src value. Therefore we put the url to the src_ (notice the underscore)  attribute.
-    // Wicket.Head.containsElement is aware of that and takes also the underscored attributes into account.
-    function addJavascript(content, id, fakeSrc, type) {
-        var script = createElement("script");
-        if (id) {
-            script.id = id;
-        }
-        // WICKET-5047: encloses the content with a try...catch... block if the content is javascript
-        // content is considered javascript if mime-type is empty (html5's default) or is 'text/javascript'
-        if (!type || type.toLowerCase() === "text/javascript") {
-            type = "text/javascript";
-            content = 'try{' + content + '}catch(e){Wicket.Log.error(e);}';
-        }
-        script.setAttribute("src_", fakeSrc);
-        script.setAttribute("type", type);
-        // set the javascript as element content
-        if (null === script.canHaveChildren || script.canHaveChildren) {
-            var textNode = document.createTextNode(content);
-            script.appendChild(textNode);
-        }
-        else {
-            script.text = content;
-        }
-        addElement(script);
-    }
-    // Goes through all script elements contained by the element and add them to head
-    function addJavascripts(element, contentFilter) {
-        function add(element) {
-            var src = element.getAttribute("src");
-            var type = element.getAttribute("type");
-            // if it is a reference, just add it to head
-            if (src !== null && src.length > 0) {
-                var e = document.createElement("script");
-                if (type) {
-                    e.setAttribute("type", type);
-                }
-                e.setAttribute("src", src);
-                addElement(e);
-            }
-            else {
-                var content = serializeNodeChildren(element);
-                if (isUndef(content) || content === "") {
-                    content = element.text;
-                }
-                if (typeof (contentFilter) === "function") {
-                    content = contentFilter(content);
-                }
-                addJavascript(content, element.id, "", type);
-            }
-        }
-        if (typeof (element) !== "undefined" &&
-            typeof (element.tagName) !== "undefined" &&
-            element.tagName.toLowerCase() === "script") {
-            add(element);
-        }
-        else {
-            // we need to check if there are any children, because Safari
-            // aborts when the element is a text node
-            if (element.childNodes.length > 0) {
-                var scripts = element.getElementsByTagName("script");
-                for (var i = 0; i < scripts.length; ++i) {
-                    add(scripts[i]);
-                }
-            }
-        }
-    }
-
-    var Head = /*#__PURE__*/Object.freeze({
-        Contributor: Contributor,
-        createElement: createElement,
-        addElement: addElement,
-        containsElement: containsElement$1,
-        addJavascript: addJavascript,
-        addJavascripts: addJavascripts
-    });
-
-    var Focus = /** @class */ (function () {
-        function Focus() {
-        }
-        Focus.focusin = function (event) {
-            event = fix(event);
-            var target = event.target;
-            if (target) {
-                var WF = Focus;
-                WF.refocusLastFocusedComponentAfterResponse = false;
-                var id = target.id;
-                WF.lastFocusId = id;
-                Log.info("focus set on " + id);
-            }
-        };
-        Focus.focusout = function (event) {
-            event = fix(event);
-            var target = event.target;
-            var WF = Focus;
-            if (target && WF.lastFocusId === target.id) {
-                var id = target.id;
-                if (WF.refocusLastFocusedComponentAfterResponse) {
-                    // replaced components seem to blur when replaced only on Safari - so do not modify lastFocusId so it gets refocused
-                    Log.info("focus removed from " + id + " but ignored because of component replacement");
-                }
-                else {
-                    WF.lastFocusId = null;
-                    Log.info("focus removed from " + id);
-                }
-            }
-        };
-        Focus.getFocusedElement = function () {
-            var lastFocusId = Focus.lastFocusId;
-            if (lastFocusId) {
-                var focusedElement = $(lastFocusId);
-                Log.info("returned focused element: " + focusedElement);
-                return focusedElement;
-            }
-        };
-        Focus.setFocusOnId = function (id) {
-            var WF = Focus;
-            if (id) {
-                WF.refocusLastFocusedComponentAfterResponse = true;
-                WF.focusSetFromServer = true;
-                WF.lastFocusId = id;
-                Log.info("focus set on " + id + " from server side");
-            }
-            else {
-                WF.refocusLastFocusedComponentAfterResponse = false;
-                Log.info("refocus focused component after request stopped from server side");
-            }
-        };
-        // mark the focused component so that we know if it has been replaced or not by response
-        Focus.markFocusedComponent = function () {
-            var WF = Focus;
-            var focusedElement = WF.getFocusedElement();
-            if (focusedElement) {
-                // create a property of the focused element that would not remain there if component is replaced
-                focusedElement.wasFocusedBeforeComponentReplacements = true;
-                WF.refocusLastFocusedComponentAfterResponse = true;
-                WF.focusSetFromServer = false;
-            }
-            else {
-                WF.refocusLastFocusedComponentAfterResponse = false;
-            }
-        };
-        // detect if the focused component was replaced
-        Focus.checkFocusedComponentReplaced = function () {
-            var WF = Focus;
-            if (WF.refocusLastFocusedComponentAfterResponse) {
-                var focusedElement = WF.getFocusedElement();
-                if (focusedElement) {
-                    if (typeof (focusedElement.wasFocusedBeforeComponentReplacements) !== "undefined") {
-                        // focus component was not replaced - no need to refocus it
-                        WF.refocusLastFocusedComponentAfterResponse = false;
-                    }
-                }
-                else {
-                    // focused component dissapeared completely - no use to try to refocus it
-                    WF.refocusLastFocusedComponentAfterResponse = false;
-                    WF.lastFocusId = "";
-                }
-            }
-        };
-        Focus.requestFocus = function () {
-            // if the focused component is replaced by the ajax response, a re-focus might be needed
-            // (if focus was not changed from server) but if not, and the focus component should
-            // remain the same, do not re-focus - fixes problem on IE6 for combos that have
-            // the popup open (refocusing closes popup)
-            var WF = Focus;
-            if (WF.refocusLastFocusedComponentAfterResponse && WF.lastFocusId) {
-                var toFocus = $(WF.lastFocusId);
-                if (toFocus) {
-                    Log.info("Calling focus on " + WF.lastFocusId);
-                    var safeFocus = function () {
-                        try {
-                            toFocus.focus();
-                        }
-                        catch (ignore) {
-                            // WICKET-6209 IE fails if toFocus is disabled
-                        }
-                    };
-                    if (WF.focusSetFromServer) {
-                        // WICKET-5858
-                        window.setTimeout(safeFocus, 0);
-                    }
-                    else {
-                        // avoid loops like - onfocus triggering an event the modifies the tag => refocus => the event is triggered again
-                        var temp = toFocus.onfocus;
-                        toFocus.onfocus = null;
-                        // IE needs setTimeout (it seems not to call onfocus sync. when focus() is called
+    jQuery.event.special.inputchange = {
+        keys: {
+            BACKSPACE: 8,
+            TAB: 9,
+            ENTER: 13,
+            ESC: 27,
+            LEFT: 37,
+            UP: 38,
+            RIGHT: 39,
+            DOWN: 40,
+            SHIFT: 16,
+            CTRL: 17,
+            ALT: 18,
+            END: 35,
+            HOME: 36
+        },
+        keyDownPressed: false,
+        setup: function () {
+            if (exports.Browser.isIE()) {
+                // WICKET-5959: IE >= 11 supports "input" events, but triggers too often
+                // to be reliable
+                jQuery(this).on('keydown', function (event) {
+                    jQuery.event.special.inputchange.keyDownPressed = true;
+                });
+                jQuery(this).on("cut paste", function (evt) {
+                    var self = this;
+                    if (false === jQuery.event.special.inputchange.keyDownPressed) {
                         window.setTimeout(function () {
-                            safeFocus();
-                            toFocus.onfocus = temp;
-                        }, 0);
+                            jQuery.event.special.inputchange.handler.call(self, evt);
+                        }, 10);
                     }
-                }
-                else {
-                    WF.lastFocusId = "";
-                    Log.info("Couldn't set focus on element with id '" + WF.lastFocusId + "' because it is not in the page anymore");
-                }
-            }
-            else if (WF.refocusLastFocusedComponentAfterResponse) {
-                Log.info("last focus id was not set");
+                });
+                jQuery(this).on("keyup", function (evt) {
+                    jQuery.event.special.inputchange.keyDownPressed = false; // reset
+                    jQuery.event.special.inputchange.handler.call(this, evt);
+                });
             }
             else {
-                Log.info("refocus last focused component not needed/allowed");
+                jQuery(this).on("input", jQuery.event.special.inputchange.handler);
             }
-            Focus.refocusLastFocusedComponentAfterResponse = false;
-        };
-        Focus.lastFocusId = "";
-        Focus.refocusLastFocusedComponentAfterResponse = false;
-        Focus.focusSetFromServer = false;
-        return Focus;
-    }());
-
-    function isUndef(target) {
-        return (typeof (target) === 'undefined' || target === null);
-    }
-    function $(arg) {
-        return get(arg);
-    }
-    /**
-     * returns if the element belongs to current document
-     * if the argument is not element, function returns true
-     */
-    function $$(element) {
-        return inDoc(element);
-    }
-    /**
-     * Merges two objects. Values of the second will overwrite values of the first.
-     *
-     * @param {Object} object1 - the first object to merge
-     * @param {Object} object2 - the second object to merge
-     * @return {Object} a new object with the values of object1 and object2
-     */
-    function merge(object1, object2) {
-        return jQuery.extend({}, object1, object2);
-    }
-    /**
-     * Takes a function and returns a new one that will always have a particular context, i.e. 'this' will be the passed context.
-     *
-     * @param {Function} fn - the function which context will be set
-     * @param {Object} context - the new context for the function
-     * @return {Function} the original function with the changed context
-     */
-    function bind(fn, context) {
-        return jQuery.proxy(fn, context);
-    }
-    /**
-     * A safe getter for Wicket's Ajax base URL.
-     * If the value is not defined or is empty string then
-     * return '.' (current folder) as base URL.
-     * Used for request header and parameter
-     */
-    function getAjaxBaseUrl() {
-        var baseUrl$1 = baseUrl || '.';
-        return baseUrl$1;
-    }
-    /**
-     * Helper method that serializes HtmlDocument to string and then
-     * creates a DOMDocument by parsing this string.
-     * It is used as a workaround for the problem described at https://issues.apache.org/jira/browse/WICKET-4332
-     * @param htmlDocument (DispHtmlDocument) the document object created by IE from the XML response in the iframe
-     */
-    function htmlToDomDocument(htmlDocument) {
-        var xmlAsString = htmlDocument.body.outerText;
-        xmlAsString = xmlAsString.replace(/^\s+|\s+$/g, ''); // trim
-        xmlAsString = xmlAsString.replace(/(\n|\r)-*/g, ''); // remove '\r\n-'. The dash is optional.
-        var xmldoc = parse(xmlAsString);
-        return xmldoc;
-    }
-    /**
-     * Converts a NodeList to an Array
-     *
-     * @param nodeList The NodeList to convert
-     * @returns {Array} The array with document nodes
-     */
-    function nodeListToArray(nodeList) {
-        var arr = [], nodeId;
-        if (nodeList && nodeList.length) {
-            for (nodeId = 0; nodeId < nodeList.length; nodeId++) {
-                arr.push(nodeList.item(nodeId));
+        },
+        teardown: function () {
+            jQuery(this).off("input keyup cut paste", jQuery.event.special.inputchange.handler);
+        },
+        handler: function (evt) {
+            var WE = Event;
+            var k = jQuery.event.special.inputchange.keys;
+            var kc = WE.keyCode(WE.fix(evt));
+            switch (kc) {
+                case k.ENTER:
+                case k.UP:
+                case k.DOWN:
+                case k.ESC:
+                case k.TAB:
+                case k.RIGHT:
+                case k.LEFT:
+                case k.SHIFT:
+                case k.ALT:
+                case k.CTRL:
+                case k.HOME:
+                case k.END:
+                    return WE.stop(evt);
+                default:
+                    evt.type = "inputchange";
+                    var args = Array.prototype.slice.call(arguments, 0);
+                    return jQuery(this).trigger(evt.type, args);
             }
         }
-        return arr;
-    }
-    var channelManager = new ChannelManager();
+    };
+    // MISC FUNCTIONS
+    /**
+     * Track focussed element.
+     */
+    add(window, 'focusin', Focus.focusin);
+    add(window, 'focusout', Focus.focusout);
+    /**
+     * Clear any scheduled Ajax timers when leaving the current page
+     */
+    add(window, "unload", function () {
+        Timer.clearAll();
+    });
 
     exports.$ = $;
     exports.$$ = $$;
+    exports.Ajax = Ajax;
     exports.Channel = Channel;
+    exports.ChannelManager = ChannelManager;
     exports.Class = Class;
     exports.DOM = DOM;
     exports.Event = Event;
@@ -2424,14 +2565,13 @@ var Wicket = (function (exports) {
     exports.Log = Log;
     exports.Throttler = Throttler;
     exports.ThrottlerEntry = ThrottlerEntry;
+    exports.Timer = Timer;
+    exports.TimerHandles = TimerHandles;
     exports.Xml = Xml;
     exports.bind = bind;
     exports.channelManager = channelManager;
-    exports.getAjaxBaseUrl = getAjaxBaseUrl;
-    exports.htmlToDomDocument = htmlToDomDocument;
-    exports.isUndef = isUndef;
     exports.merge = merge;
-    exports.nodeListToArray = nodeListToArray;
+    exports.throttler = throttler;
 
     return exports;
 

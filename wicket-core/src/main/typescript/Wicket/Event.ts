@@ -1,12 +1,12 @@
-import * as Wicket from "../Wicket";
-
-declare var jQuery: any;
+import {jQuery} from "./WicketUtils";
+import {Browser} from "./Browser";
+import {Log} from "./Log";
 
 export let idCounter = 0;
 
 export function getId(element) {
-    var $el = jQuery(element),
-        id = $el.prop("id");
+    const $el = jQuery(element);
+    let id = $el.prop("id");
 
     if (typeof (id) === "string" && id.length > 0) {
         return id;
@@ -45,7 +45,7 @@ export function fix(evt) {
 }
 
 export function fire(element, event) {
-    event = (event === 'mousewheel' && Wicket.Browser.isGecko()) ? 'DOMMouseScroll' : event;
+    event = (event === 'mousewheel' && Browser.isGecko()) ? 'DOMMouseScroll' : event;
     jQuery(element).trigger(event);
 }
 
@@ -64,7 +64,7 @@ export function fire(element, event) {
  *      elements that trigger the event. If the selector is null or omitted,
  *      the event is always triggered when it reaches the selected element.
  */
-export function add(element, type, fn, data, selector) {
+export function add(element, type, fn, data?, selector?) {
     if (type === 'domready') {
         jQuery(fn);
     } else if (type === 'load' && element === window) {
@@ -72,14 +72,14 @@ export function add(element, type, fn, data, selector) {
             jQuery(fn);
         });
     } else {
-        type = (type === 'mousewheel' && Wicket.Browser.isGecko()) ? 'DOMMouseScroll' : type;
-        var el = element;
+        type = (type === 'mousewheel' && Browser.isGecko()) ? 'DOMMouseScroll' : type;
+        let el = element;
         if (typeof (element) === 'string') {
             el = document.getElementById(element);
         }
 
-        if (!el && Wicket.Log) {
-            Wicket.Log.error('Cannot bind a listener for event "' + type +
+        if (!el && Log) {
+            Log.error('Cannot bind a listener for event "' + type +
                 '" on element "' + element + '" because the element is not in the DOM');
         }
 

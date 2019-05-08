@@ -1,6 +1,5 @@
-import {isUndef, Log} from "../Wicket";
-
-declare var jQuery: any;
+import {jQuery, isUndef} from "./WicketUtils";
+import {Log} from "./Log";
 
 export class FunctionsExecuter {
 
@@ -72,12 +71,12 @@ export class FunctionsExecuter {
 
     processNext() {
         if (this.current < this.functions.length) {
-            var f, run;
+            let f, run;
 
             f = this.functions[this.current];
             run = function () {
                 try {
-                    var n = jQuery.proxy(this.notify, this);
+                    const n = jQuery.proxy(this.notify, this);
                     return f(n);
                 } catch (e) {
                     Log.error("FunctionsExecuter.processNext: " + e);
@@ -92,7 +91,7 @@ export class FunctionsExecuter {
                 this.depth = 0;
                 window.setTimeout(run, 1);
             } else {
-                var retValue = run();
+                const retValue = run();
                 if (isUndef(retValue) || retValue === FunctionsExecuter.ASYNC) {
                     this.depth++;
                 }
@@ -102,7 +101,7 @@ export class FunctionsExecuter {
     }
 
     start() {
-        var retValue = FunctionsExecuter.DONE;
+        let retValue = FunctionsExecuter.DONE;
         while (retValue === FunctionsExecuter.DONE) {
             retValue = this.processNext();
         }

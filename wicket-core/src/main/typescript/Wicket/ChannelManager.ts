@@ -1,5 +1,5 @@
 import {Channel} from "./Channel";
-import {isUndef} from "../Wicket";
+import {isUndef} from "./WicketUtils";
 import {FunctionsExecuter} from "./FunctionsExecuter";
 
 export class ChannelManager {
@@ -36,5 +36,6 @@ export class ChannelManager {
             }
         }
     }
-
 }
+
+export const channelManager = new ChannelManager();

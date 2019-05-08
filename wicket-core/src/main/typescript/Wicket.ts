@@ -1,105 +1,125 @@
 import "./Wicket/Disclaimer";
+import {jQuery} from "./Wicket/WicketUtils";
 import * as Class from "./Wicket/Class";
 import * as DOM from "./Wicket/DOM";
+import {Focus} from "./Wicket/Focus";
 import * as Event from "./Wicket/Event";
 import * as Ajax from "./Wicket/Ajax";
-import {ChannelManager} from "./Wicket/ChannelManager";
 import {Browser} from "./Wicket/Browser";
-import {Throttler} from "./Wicket/Throttler";
 import * as Xml from "./Wicket/Xml";
 import * as Form from "./Wicket/Form";
 import * as Head from "./Wicket/Head";
-
-declare var jQuery: any;
-
-export function isUndef(target: any): boolean {
-    return (typeof(target) === 'undefined' || target === null);
-}
-
-export function $ (arg) {
-    return DOM.get(arg);
-}
+import {TimerHandles, Timer} from "./Wicket/Timer";
 
 /**
- * returns if the element belongs to current document
- * if the argument is not element, function returns true
+ * A special event that is used to listen for immediate changes in input fields.
  */
-export function $$ (element) {
-    return DOM.inDoc(element);
-}
+jQuery.event.special.inputchange = {
 
-/**
- * Merges two objects. Values of the second will overwrite values of the first.
- *
- * @param {Object} object1 - the first object to merge
- * @param {Object} object2 - the second object to merge
- * @return {Object} a new object with the values of object1 and object2
- */
-export function merge (object1, object2) {
-    return jQuery.extend({}, object1, object2);
-}
+    keys : {
+        BACKSPACE	: 8,
+        TAB			: 9,
+        ENTER		: 13,
+        ESC			: 27,
+        LEFT		: 37,
+        UP			: 38,
+        RIGHT		: 39,
+        DOWN		: 40,
+        SHIFT		: 16,
+        CTRL		: 17,
+        ALT			: 18,
+        END			: 35,
+        HOME		: 36
+    },
 
-/**
- * Takes a function and returns a new one that will always have a particular context, i.e. 'this' will be the passed context.
- *
- * @param {Function} fn - the function which context will be set
- * @param {Object} context - the new context for the function
- * @return {Function} the original function with the changed context
- */
-export function bind (fn, context) {
-    return jQuery.proxy(fn, context);
-}
+    keyDownPressed : false,
 
-/**
- * A safe getter for Wicket's Ajax base URL.
- * If the value is not defined or is empty string then
- * return '.' (current folder) as base URL.
- * Used for request header and parameter
- */
-export function getAjaxBaseUrl () {
-    let baseUrl = Ajax.baseUrl || '.';
-    return baseUrl;
-}
+    setup: function () {
 
-/**
- * Helper method that serializes HtmlDocument to string and then
- * creates a DOMDocument by parsing this string.
- * It is used as a workaround for the problem described at https://issues.apache.org/jira/browse/WICKET-4332
- * @param htmlDocument (DispHtmlDocument) the document object created by IE from the XML response in the iframe
- */
-export function htmlToDomDocument (htmlDocument) {
-    var xmlAsString = htmlDocument.body.outerText;
-    xmlAsString = xmlAsString.replace(/^\s+|\s+$/g, ''); // trim
-    xmlAsString = xmlAsString.replace(/(\n|\r)-*/g, ''); // remove '\r\n-'. The dash is optional.
-    let xmldoc = Xml.parse(xmlAsString);
-    return xmldoc;
-}
+        if (Browser.isIE()) {
+            // WICKET-5959: IE >= 11 supports "input" events, but triggers too often
+            // to be reliable
 
-/**
- * Converts a NodeList to an Array
- *
- * @param nodeList The NodeList to convert
- * @returns {Array} The array with document nodes
- */
-export function nodeListToArray (nodeList) {
-    let arr = [],
-        nodeId;
-    if (nodeList && nodeList.length) {
-        for (nodeId = 0; nodeId < nodeList.length; nodeId++) {
-            arr.push(nodeList.item(nodeId));
+            jQuery(this).on('keydown', function (event) {
+                jQuery.event.special.inputchange.keyDownPressed = true;
+            });
+
+            jQuery(this).on("cut paste", function (evt) {
+
+                const self = this;
+
+                if (false === jQuery.event.special.inputchange.keyDownPressed) {
+                    window.setTimeout(function() {
+                        jQuery.event.special.inputchange.handler.call(self, evt);
+                    }, 10);
+                }
+            });
+
+            jQuery(this).on("keyup", function (evt) {
+                jQuery.event.special.inputchange.keyDownPressed = false; // reset
+                jQuery.event.special.inputchange.handler.call(this, evt);
+            });
+
+        } else {
+
+            jQuery(this).on("input", jQuery.event.special.inputchange.handler);
+        }
+    },
+
+    teardown: function() {
+        jQuery(this).off("input keyup cut paste", jQuery.event.special.inputchange.handler);
+    },
+
+    handler: function( evt ) {
+        const WE = Event;
+        const k = jQuery.event.special.inputchange.keys;
+
+        const kc = WE.keyCode(WE.fix(evt));
+        switch (kc) {
+            case k.ENTER:
+            case k.UP:
+            case k.DOWN:
+            case k.ESC:
+            case k.TAB:
+            case k.RIGHT:
+            case k.LEFT:
+            case k.SHIFT:
+            case k.ALT:
+            case k.CTRL:
+            case k.HOME:
+            case k.END:
+                return WE.stop(evt);
+            default:
+                evt.type = "inputchange";
+                const args = Array.prototype.slice.call(arguments, 0);
+                return jQuery(this).trigger(evt.type, args);
         }
     }
-    return arr;
-}
+};
 
-export let channelManager = new ChannelManager();
+// MISC FUNCTIONS
 
+/**
+ * Track focussed element.
+ */
+Event.add(window, 'focusin', Focus.focusin);
+Event.add(window, 'focusout', Focus.focusout);
+
+/**
+ * Clear any scheduled Ajax timers when leaving the current page
+ */
+Event.add(window, "unload", function() {
+    Timer.clearAll();
+});
+
+export {$, $$, merge, bind} from "./Wicket/WicketUtils"
+export {channelManager, ChannelManager} from "./Wicket/ChannelManager";
 export {Log} from "./Wicket/Log";
+export {Timer, TimerHandles};
 export {Channel} from "./Wicket/Channel";
-export {Throttler} from "./Wicket/Throttler";
+export {throttler, Throttler} from "./Wicket/Throttler";
 export {ThrottlerEntry} from "./Wicket/ThrottlerEntry";
-export {Focus} from "./Wicket/Focus";
-export {Class, DOM, Event, Browser, Xml, Form, Head};
+export {Ajax, Class, DOM, Event, Browser, Xml, Form, Head, Focus};
 
 
 

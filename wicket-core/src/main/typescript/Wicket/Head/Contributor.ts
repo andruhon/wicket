@@ -1,8 +1,10 @@
-import * as Wicket from "../../Wicket";
+import {jQuery, isUndef} from "../WicketUtils";
 import * as Head from "../Head";
-import {isUndef} from "../../Wicket";
+import * as DOM from "../DOM";
+import * as Xml from "../Xml";
 import {FunctionsExecuter} from "../FunctionsExecuter";
-declare var jQuery: any;
+import {Browser} from "../Browser";
+import {Log} from "../Log";
 
 // Parses the header contribution element (returns a DOM tree with the contribution)
 export function parse(headerNode) {
@@ -13,16 +15,16 @@ export function parse(headerNode) {
     // need to replace that first
 
     // get the header contribution text and unescape it if necessary
-    var text = Wicket.DOM.text(headerNode);
+    let text = DOM.text(headerNode);
 
-    if (Wicket.Browser.isKHTML()) {
+    if (Browser.isKHTML()) {
         // konqueror crashes if there is a <script element in the xml, but <SCRIPT is fine.
         text = text.replace(/<script/g, "<SCRIPT");
         text = text.replace(/<\/script>/g, "</SCRIPT>");
     }
 
     // build a DOM tree of the contribution
-    var xmldoc = Wicket.Xml.parse(text);
+    const xmldoc = Xml.parse(text);
     return xmldoc;
 }
 
@@ -30,10 +32,10 @@ export function parse(headerNode) {
 // created by DOMParser if there is a error in XML parsing
 // TODO: move out of the API section
 export function _checkParserError(node) {
-    var result = false;
+    let result = false;
 
     if (!isUndef(node.tagName) && node.tagName.toLowerCase() === "parsererror") {
-        Wicket.Log.error("Error in parsing: " + node.textContent);
+        Log.error("Error in parsing: " + node.textContent);
         result = true;
     }
     return result;
@@ -41,8 +43,8 @@ export function _checkParserError(node) {
 
 // Processes the parsed header contribution
 export function processContribution(context, headerNode) {
-    var xmldoc = this.parse(headerNode);
-    var rootNode = xmldoc.documentElement;
+    const xmldoc = this.parse(headerNode);
+    const rootNode = xmldoc.documentElement;
 
     // Firefox and Opera reports the error in the documentElement
     if (this._checkParserError(rootNode)) {
@@ -50,8 +52,8 @@ export function processContribution(context, headerNode) {
     }
 
     // go through the individual elements and process them according to their type
-    for (var i = 0; i < rootNode.childNodes.length; i++) {
-        var node = rootNode.childNodes[i];
+    for (let i = 0; i < rootNode.childNodes.length; i++) {
+        let node = rootNode.childNodes[i];
 
         // Chromium reports the error as a child node
         if (this._checkParserError(node)) {
@@ -59,13 +61,13 @@ export function processContribution(context, headerNode) {
         }
 
         if (!isUndef(node.tagName)) {
-            var name = node.tagName.toLowerCase();
+            let name = node.tagName.toLowerCase();
 
             // it is possible that a reference is surrounded by a <wicket:link
             // in that case, we need to find the inner element
             if (name === "wicket:link") {
-                for (var j = 0; j < node.childNodes.length; ++j) {
-                    var childNode = node.childNodes[j];
+                for (let j = 0; j < node.childNodes.length; ++j) {
+                    const childNode = node.childNodes[j];
                     // try to find a regular node inside wicket:link
                     if (childNode.nodeType === 1) {
                         node = childNode;
@@ -94,8 +96,8 @@ export function processContribution(context, headerNode) {
 // Process an external stylesheet element
 export function processLink(context, node) {
     context.steps.push(function (notify) {
-        var res = Head.containsElement(node, "href");
-        var oldNode = res.oldNode;
+        const res = Head.containsElement(node, "href");
+        const oldNode = res.oldNode;
         if (res.contains) {
             // an element with same href attribute is in document, skip it
             return FunctionsExecuter.DONE;
@@ -105,11 +107,11 @@ export function processLink(context, node) {
         }
 
         // create link element
-        var css = Head.createElement("link");
+        const css = Head.createElement("link");
 
         // copy supplied attributes only.
-        var attributes = jQuery(node).prop("attributes");
-        var $css = jQuery(css);
+        const attributes = jQuery(node).prop("attributes");
+        const $css = jQuery(css);
         jQuery.each(attributes, function () {
             $css.attr(this.name, this.value);
         });
@@ -121,8 +123,8 @@ export function processLink(context, node) {
         // taken from http://www.backalleycoder.com/2011/03/20/link-tag-css-stylesheet-load-event/
         // this makes a second GET request to the css but it gets it either from the cache or
         // downloads just the first several bytes and realizes that the MIME is wrong and ignores the rest
-        var img = document.createElement('img');
-        var notifyCalled = false;
+        const img = document.createElement('img');
+        let notifyCalled = false;
         img.onerror = function () {
             if (!notifyCalled) {
                 notifyCalled = true;
@@ -145,23 +147,23 @@ export function processLink(context, node) {
 export function processStyle(context, node) {
     context.steps.push(function (notify) {
         // if element with same id is already in document, skip it
-        if (Wicket.DOM.containsElement(node)) {
+        if (DOM.containsElement(node)) {
             return FunctionsExecuter.DONE;
         }
         // serialize the style to string
-        var content = Wicket.DOM.serializeNodeChildren(node);
+        const content = DOM.serializeNodeChildren(node);
 
         // create stylesheet
-        if (Wicket.Browser.isIELessThan11()) {
+        if (Browser.isIELessThan11()) {
             try {
                 (document as any).createStyleSheet().cssText = content;
                 return FunctionsExecuter.DONE;
             } catch (ignore) {
-                var run = function () {
+                const run = function () {
                     try {
                         (document as any).createStyleSheet().cssText = content;
                     } catch (e) {
-                        Wicket.Log.error("Wicket.Head.Contributor.processStyle: " + e);
+                        Log.error("Wicket.Head.Contributor.processStyle: " + e);
                     }
                     notify();
                 };
@@ -170,12 +172,12 @@ export function processStyle(context, node) {
             }
         } else {
             // create style element
-            var style = Head.createElement("style");
+            const style = Head.createElement("style");
 
             // copy id attribute
             style.id = node.getAttribute("id");
 
-            var textNode = document.createTextNode(content);
+            const textNode = document.createTextNode(content);
             style.appendChild(textNode);
 
             Head.addElement(style);
@@ -190,12 +192,12 @@ export function processStyle(context, node) {
 export function processScript(context, node) {
     context.steps.push(function (notify) {
 
-        if (!node.getAttribute("src") && Wicket.DOM.containsElement(node)) {
+        if (!node.getAttribute("src") && DOM.containsElement(node)) {
             // if an inline element with same id is already in document, skip it
             return FunctionsExecuter.DONE;
         } else {
-            var res = Head.containsElement(node, "src");
-            var oldNode = res.oldNode;
+            const res = Head.containsElement(node, "src");
+            const oldNode = res.oldNode;
             if (res.contains) {
                 // an element with same src attribute is in document, skip it
                 return FunctionsExecuter.DONE;
@@ -206,20 +208,20 @@ export function processScript(context, node) {
         }
 
         // determine whether it is external javascript (has src attribute set)
-        var src = node.getAttribute("src");
+        const src = node.getAttribute("src");
 
         if (src !== null && src !== "") {
 
             // convert the XML node to DOM node
-            var scriptDomNode = document.createElement("script");
+            const scriptDomNode = document.createElement("script");
 
-            var attrs = node.attributes;
-            for (var a = 0; a < attrs.length; a++) {
-                var attr = attrs[a];
+            const attrs = node.attributes;
+            for (let a = 0; a < attrs.length; a++) {
+                const attr = attrs[a];
                 scriptDomNode[attr.name] = attr.value;
             }
 
-            var onScriptReady = function () {
+            const onScriptReady = function () {
                 notify();
             };
 
@@ -232,7 +234,7 @@ export function processScript(context, node) {
                         onScriptReady();
                     }
                 };
-            } else if (Wicket.Browser.isGecko()) {
+            } else if (Browser.isGecko()) {
                 // Firefox doesn't react on the checks above but still supports 'onload'
                 scriptDomNode.onload = onScriptReady;
             } else {
@@ -245,13 +247,13 @@ export function processScript(context, node) {
             return FunctionsExecuter.ASYNC;
         } else {
             // serialize the element content to string
-            var text = Wicket.DOM.serializeNodeChildren(node);
+            let text = DOM.serializeNodeChildren(node);
             // get rid of prefix and suffix, they are not eval-d correctly
             text = text.replace(/^\n\/\*<!\[CDATA\[\*\/\n/, "");
             text = text.replace(/\n\/\*\]\]>\*\/\n$/, "");
 
-            var id = node.getAttribute("id");
-            var type = node.getAttribute("type");
+            const id = node.getAttribute("id");
+            const type = node.getAttribute("type");
 
             if (typeof (id) === "string" && id.length > 0) {
                 // add javascript to document head
@@ -261,7 +263,7 @@ export function processScript(context, node) {
                     // do the evaluation in global scope
                     (window as any).eval(text);
                 } catch (e) {
-                    Wicket.Log.error("Wicket.Head.Contributor.processScript: " + e + ": eval -> " + text);
+                    Log.error("Wicket.Head.Contributor.processScript: " + e + ": eval -> " + text);
                 }
             }
 
@@ -273,7 +275,7 @@ export function processScript(context, node) {
 
 export function processMeta(context, node) {
     context.steps.push(function (notify) {
-        var meta = Head.createElement("meta"),
+        const meta = Head.createElement("meta"),
             $meta = jQuery(meta),
             attrs = jQuery(node).prop("attributes"),
             name = node.getAttribute("name");
@@ -294,7 +296,7 @@ export function processMeta(context, node) {
 // process (conditional) comments
 export function processComment(context, node) {
     context.steps.push(function (notify) {
-        var comment = document.createComment(node.nodeValue);
+        const comment = document.createComment(node.nodeValue);
         Head.addElement(comment);
         return FunctionsExecuter.DONE;
     });

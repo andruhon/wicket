@@ -1,7 +1,4 @@
-import * as Wicket from "../Wicket";
-import {nodeListToArray} from "../Wicket";
-
-declare var jQuery: any;
+import {jQuery, $, nodeListToArray} from "./WicketUtils";
 
 export function encode (text) {
     if ((window as any).encodeURIComponent) {
@@ -19,15 +16,15 @@ export function encode (text) {
  *		or empty object if the form element is disabled.
  */
 export function serializeSelect (select){
-    var result = [];
+    const result = [];
     if (select) {
-        var $select = jQuery(select);
+        const $select = jQuery(select);
         if ($select.length > 0 && $select.prop('disabled') === false) {
-            var name = $select.prop('name');
-            var values = $select.val();
+            const name = $select.prop('name');
+            const values = $select.val();
             if (jQuery.isArray(values)) {
-                for (var v = 0; v < values.length; v++) {
-                    var value = values[v];
+                for (let v = 0; v < values.length; v++) {
+                    const value = values[v];
                     result.push( { name: name, value: value } );
                 }
             } else {
@@ -50,12 +47,12 @@ export function serializeSelect (select){
  * @return the URL encoded key=value pair or empty string if the form element is disabled.
  */
 export function serializeInput (input) {
-    var result = [];
+    let result = [];
     if (input && input.type) {
-        var $input = jQuery(input);
+        const $input = jQuery(input);
 
         if (input.type === 'file') {
-            for (var f = 0; f < input.files.length; f++) {
+            for (let f = 0; f < input.files.length; f++) {
                 result.push({"name" : input.name, "value" : input.files[f]});
             }
         } else if (!(input.type === 'image' || input.type === 'submit')) {
@@ -92,27 +89,27 @@ export function serializeElement (element, serializeRecursively) {
         return [];
     }
     else if (typeof(element) === 'string') {
-        element = Wicket.$(element);
+        element = $(element);
     }
 
     if (excludeFromAjaxSerialization && element.id && excludeFromAjaxSerialization[element.id] === "true") {
         return [];
     }
 
-    var tag = element.tagName.toLowerCase();
+    const tag = element.tagName.toLowerCase();
     if (tag === "select") {
         return serializeSelect(element);
     } else if (tag === "input" || tag === "textarea") {
         return serializeInput(element);
     } else {
-        var result = [];
+        let result = [];
         if (serializeRecursively) {
-            var elements = nodeListToArray(element.getElementsByTagName("input"));
+            let elements = nodeListToArray(element.getElementsByTagName("input"));
             elements = elements.concat(nodeListToArray(element.getElementsByTagName("select")));
             elements = elements.concat(nodeListToArray(element.getElementsByTagName("textarea")));
 
-            for (var i = 0; i < elements.length; ++i) {
-                var el = elements[i];
+            for (let i = 0; i < elements.length; ++i) {
+                const el = elements[i];
                 if (el.name && el.name !== "") {
                     result = result.concat(serializeElement(el, serializeRecursively));
                 }
@@ -123,7 +120,7 @@ export function serializeElement (element, serializeRecursively) {
 }
 
 export function serializeForm (form) {
-    var result = [],
+    let result = [],
         elements;
 
     if (form) {
@@ -140,8 +137,8 @@ export function serializeForm (form) {
         }
     }
 
-    for (var i = 0; i < elements.length; ++i) {
-        var el = elements[i];
+    for (let i = 0; i < elements.length; ++i) {
+        const el = elements[i];
         if (el.name && el.name !== "") {
             result = result.concat(serializeElement(el, false));
         }
@@ -151,14 +148,14 @@ export function serializeForm (form) {
 
 export function serialize (element, dontTryToFindRootForm) {
     if (typeof(element) === 'string') {
-        element = Wicket.$(element);
+        element = $(element);
     }
 
     if (element.tagName.toLowerCase() === "form") {
         return serializeForm(element);
     } else {
         // try to find a form in DOM parents
-        var elementBck = element;
+        const elementBck = element;
 
         if (dontTryToFindRootForm !== true) {
             do {
@@ -171,12 +168,12 @@ export function serialize (element, dontTryToFindRootForm) {
         } else {
             // there is not form in dom hierarchy
             // simulate it
-            var form = document.createElement("form");
-            var parent = elementBck.parentNode;
+            const form = document.createElement("form");
+            const parent = elementBck.parentNode;
 
             parent.replaceChild(form, elementBck);
             form.appendChild(elementBck);
-            var result = serializeForm(form);
+            const result = serializeForm(form);
             parent.replaceChild(elementBck, form);
 
             return result;

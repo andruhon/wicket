@@ -1,5 +1,5 @@
-import * as Wicket from "../Wicket"
-import {isUndef} from "../Wicket";
+import {isUndef} from "./WicketUtils";
+import {Log} from "./Log";
 
 export class Channel {
 
@@ -28,19 +28,19 @@ export class Channel {
                 return callback();
             } catch (exception) {
                 this.busy = false;
-                Wicket.Log.error("An error occurred while executing Ajax request:" + exception);
+                Log.error("An error occurred while executing Ajax request:" + exception);
             }
         } else {
-            var busyChannel = "Channel '" + this.name + "' is busy";
+            const busyChannel = "Channel '" + this.name + "' is busy";
             if (this.type === 's') { // stack/queue
-                Wicket.Log.info(busyChannel + " - scheduling the callback to be executed when the previous request finish.");
+                Log.info(busyChannel + " - scheduling the callback to be executed when the previous request finish.");
                 this.callbacks.push(callback);
             } else if (this.type === 'd') { // drop
-                Wicket.Log.info(busyChannel + " - dropping all previous scheduled callbacks and scheduling a new one to be executed when the current request finish.");
+                Log.info(busyChannel + " - dropping all previous scheduled callbacks and scheduling a new one to be executed when the current request finish.");
                 this.callbacks = [];
                 this.callbacks.push(callback);
             } else if (this.type === 'a') { // active
-                Wicket.Log.info(busyChannel + " - ignoring the Ajax call because there is a running request.");
+                Log.info(busyChannel + " - ignoring the Ajax call because there is a running request.");
             }
             return null;
         }
@@ -54,7 +54,7 @@ export class Channel {
         }
 
         if (callback !== null && typeof (callback) !== "undefined") {
-            Wicket.Log.info("Calling postponed function...");
+            Log.info("Calling postponed function...");
             // we can't call the callback from this call-stack
             // therefore we set it on timer event
             window.setTimeout(callback, 1);

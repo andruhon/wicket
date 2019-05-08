@@ -1,4 +1,6 @@
-import * as Wicket from "../Wicket";
+import {$} from "./WicketUtils";
+import * as Event from "./Event";
+import {Log} from "./Log";
 
 export class Focus {
     public static lastFocusId = "";
@@ -6,61 +8,61 @@ export class Focus {
     public static focusSetFromServer = false;
 
     public static focusin(event) {
-        event = Wicket.Event.fix(event);
+        event = Event.fix(event);
 
-        var target = event.target;
+        const target = event.target;
         if (target) {
-            var WF = Focus;
+            const WF = Focus;
             WF.refocusLastFocusedComponentAfterResponse = false;
-            var id = target.id;
+            const id = target.id;
             WF.lastFocusId = id;
-            Wicket.Log.info("focus set on " + id);
+            Log.info("focus set on " + id);
         }
     }
 
     public static focusout(event) {
-        event = Wicket.Event.fix(event);
+        event = Event.fix(event);
 
-        var target = event.target;
-        var WF = Focus;
+        const target = event.target;
+        const WF = Focus;
         if (target && WF.lastFocusId === target.id) {
-            var id = target.id;
+            const id = target.id;
             if (WF.refocusLastFocusedComponentAfterResponse) {
                 // replaced components seem to blur when replaced only on Safari - so do not modify lastFocusId so it gets refocused
-                Wicket.Log.info("focus removed from " + id + " but ignored because of component replacement");
+                Log.info("focus removed from " + id + " but ignored because of component replacement");
             } else {
                 WF.lastFocusId = null;
-                Wicket.Log.info("focus removed from " + id);
+                Log.info("focus removed from " + id);
             }
         }
     }
 
     public static getFocusedElement() {
-        var lastFocusId = Focus.lastFocusId;
+        const lastFocusId = Focus.lastFocusId;
         if (lastFocusId) {
-            var focusedElement = Wicket.$(lastFocusId);
-            Wicket.Log.info("returned focused element: " + focusedElement);
+            const focusedElement = $(lastFocusId);
+            Log.info("returned focused element: " + focusedElement);
             return focusedElement;
         }
     }
 
     public static setFocusOnId(id) {
-        var WF = Focus;
+        const WF = Focus;
         if (id) {
             WF.refocusLastFocusedComponentAfterResponse = true;
             WF.focusSetFromServer = true;
             WF.lastFocusId = id;
-            Wicket.Log.info("focus set on " + id + " from server side");
+            Log.info("focus set on " + id + " from server side");
         } else {
             WF.refocusLastFocusedComponentAfterResponse = false;
-            Wicket.Log.info("refocus focused component after request stopped from server side");
+            Log.info("refocus focused component after request stopped from server side");
         }
     }
 
     // mark the focused component so that we know if it has been replaced or not by response
     public static markFocusedComponent() {
-        var WF = Focus;
-        var focusedElement = WF.getFocusedElement();
+        const WF = Focus;
+        const focusedElement = WF.getFocusedElement();
         if (focusedElement) {
             // create a property of the focused element that would not remain there if component is replaced
             focusedElement.wasFocusedBeforeComponentReplacements = true;
@@ -73,9 +75,9 @@ export class Focus {
 
     // detect if the focused component was replaced
     public static checkFocusedComponentReplaced() {
-        var WF = Focus;
+        const WF = Focus;
         if (WF.refocusLastFocusedComponentAfterResponse) {
-            var focusedElement = WF.getFocusedElement();
+            const focusedElement = WF.getFocusedElement();
             if (focusedElement) {
                 if (typeof (focusedElement.wasFocusedBeforeComponentReplacements) !== "undefined") {
                     // focus component was not replaced - no need to refocus it
@@ -94,14 +96,14 @@ export class Focus {
         // (if focus was not changed from server) but if not, and the focus component should
         // remain the same, do not re-focus - fixes problem on IE6 for combos that have
         // the popup open (refocusing closes popup)
-        var WF = Focus;
+        const WF = Focus;
         if (WF.refocusLastFocusedComponentAfterResponse && WF.lastFocusId) {
-            var toFocus = Wicket.$(WF.lastFocusId);
+            const toFocus = $(WF.lastFocusId);
 
             if (toFocus) {
-                Wicket.Log.info("Calling focus on " + WF.lastFocusId);
+                Log.info("Calling focus on " + WF.lastFocusId);
 
-                var safeFocus = function () {
+                const safeFocus = function () {
                     try {
                         toFocus.focus();
                     } catch (ignore) {
@@ -114,7 +116,7 @@ export class Focus {
                     window.setTimeout(safeFocus, 0);
                 } else {
                     // avoid loops like - onfocus triggering an event the modifies the tag => refocus => the event is triggered again
-                    var temp = toFocus.onfocus;
+                    const temp = toFocus.onfocus;
                     toFocus.onfocus = null;
 
                     // IE needs setTimeout (it seems not to call onfocus sync. when focus() is called
@@ -125,12 +127,12 @@ export class Focus {
                 }
             } else {
                 WF.lastFocusId = "";
-                Wicket.Log.info("Couldn't set focus on element with id '" + WF.lastFocusId + "' because it is not in the page anymore");
+                Log.info("Couldn't set focus on element with id '" + WF.lastFocusId + "' because it is not in the page anymore");
             }
         } else if (WF.refocusLastFocusedComponentAfterResponse) {
-            Wicket.Log.info("last focus id was not set");
+            Log.info("last focus id was not set");
         } else {
-            Wicket.Log.info("refocus last focused component not needed/allowed");
+            Log.info("refocus last focused component not needed/allowed");
         }
         Focus.refocusLastFocusedComponentAfterResponse = false;
     }
