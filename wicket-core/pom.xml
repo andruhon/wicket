@@ -125,6 +125,7 @@
 						<version>1.7.5</version>
 						<configuration>
 							<workingDirectory>src/main/typescript</workingDirectory>
+							<installDirectory>target</installDirectory>
 						</configuration>
 						<executions>
 							<execution>
