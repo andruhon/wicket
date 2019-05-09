@@ -125,6 +125,6 @@ class ApacheLicenceHeaderTest extends ApacheLicenseHeaderTestCase
 		javaScriptIgnore.add("src/main/typescript/node_modules");
 
 		// this one does have a header, just nead to learn how to configure rollup or ts transpiler to squeeze it before any code peaces
-		javaScriptIgnore.add("src/main/java/org/apache/wicket/ajax/res/js/wicket-ajax-jquery.js");
+		// FIXME //javaScriptIgnore.add("src/main/java/org/apache/wicket/ajax/res/js/wicket-ajax-jquery.js");
 	}
 }
