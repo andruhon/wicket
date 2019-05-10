@@ -4,7 +4,7 @@ Convert wicket-ajax-jquery into TypeScript experiment
 ```cd wicket-core/src/main/typescript```  
 ```npm install```  
 ```npm run tsc```  
-```npm run rollup``` 
+```npm run rollup --config``` 
 
 Please note it will replace original org/apache/wicket/ajax/res/js/wicket-ajax-jquery.js
 

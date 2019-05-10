@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-import "./Wicket/Disclaimer";
 import {jQuery} from "./Wicket/WicketUtils";
 import * as Class from "./Wicket/Class";
 import * as DOM from "./Wicket/DOM";
@@ -27,6 +26,13 @@ import * as Xml from "./Wicket/Xml";
 import * as Form from "./Wicket/Form";
 import * as Head from "./Wicket/Head";
 import {TimerHandles, Timer} from "./Wicket/Timer";
+
+/*
+ * Wicket Ajax Support
+ *
+ * @author Igor Vaynberg
+ * @author Matej Knopp
+ */
 
 /* TODO old implementation had these checks */
 /*if (typeof(Wicket) === 'undefined') {

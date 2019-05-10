@@ -148,8 +148,12 @@
 									<arguments>install</arguments>
 								</configuration>
 							</execution>
+							<!--
+								this one does TS transpilation and then rollup instead of using rollup ts plugin,
+								because the plugin is swallowing all type checks and it's unwanted behaviour
+							-->
 							<execution>
-								<id>build tc</id>
+								<id>build-ts</id>
 								<goals>
 									<goal>npm</goal>
 								</goals>
@@ -158,7 +162,7 @@
 								</configuration>
 							</execution>
 							<execution>
-								<id>rollup tc</id>
+								<id>rollup-ts</id>
 								<goals>
 									<goal>npm</goal>
 								</goals>
