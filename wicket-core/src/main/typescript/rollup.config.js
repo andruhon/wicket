@@ -14,10 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import sourcemaps from 'rollup-plugin-sourcemaps';
 
-module.exports = {
+export default {
     input: 'dist/Wicket.js',
     output: {
+        sourceMap: true,
         name: 'Wicket',
         file: '../java/org/apache/wicket/ajax/res/js/wicket-ajax-jquery.js',
         format: 'iife',
@@ -44,5 +46,8 @@ module.exports = {
  * Edit TC files in wicket-core/src/main/typescript instead
  * *** DO NOT EDIT ***
  */`
-    }
+    },
+    plugins: [
+        sourcemaps()
+    ]
 };

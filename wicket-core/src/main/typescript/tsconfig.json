@@ -3,6 +3,7 @@
     "module": "ESNext",
     "outDir": "dist",
     "noImplicitUseStrict": true,
-    "target": "es5"
+    "target": "es5",
+    "sourceMap": true
   }
 }
