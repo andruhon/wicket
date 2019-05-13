@@ -16,7 +16,7 @@
  */
 
 import {isUndef, jQuery} from "./WicketUtils";
-import * as Event from "./Event";
+import {Event} from "./Event";
 import {Browser} from "./Browser";
 
 /**

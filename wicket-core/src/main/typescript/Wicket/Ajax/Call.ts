@@ -16,7 +16,7 @@
  */
 
 import {$, bind, htmlToDomDocument, redirect, isUndef, jQuery} from "../WicketUtils";
-import * as Event from "../Event";
+import {Event} from "../Event";
 import * as Form from "../Form";
 import * as DOM from "../DOM";
 import * as Xml from "../Xml";
@@ -26,7 +26,7 @@ import {Browser} from "../Browser";
 import {FunctionsExecuter} from "../FunctionsExecuter";
 import {Focus} from "../Focus";
 import {Log} from "../Log";
-import {getAjaxBaseUrl} from "../Ajax";
+import {Ajax} from "../Ajax";
 
 /**
  * Ajax call fires a Wicket Ajax request and processes the response.
@@ -115,6 +115,7 @@ export class Call {
 
     /**
      * A helper function that executes an array of handlers (before, success, failure)
+     * (note: it isn't marked as private because it's used in another class of Wicket)
      *
      * @param handlers {Array[Function]} - the handlers to execute
      * @package
@@ -246,7 +247,7 @@ export class Call {
             // the headers to use for each Ajax request
             headers = {
                 'Wicket-Ajax': 'true',
-                'Wicket-Ajax-BaseURL': getAjaxBaseUrl()
+                'Wicket-Ajax-BaseURL': Ajax.getAjaxBaseUrl()
             },
 
             url = attrs.u,

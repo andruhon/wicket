@@ -16,7 +16,7 @@
  */
 
 import {$} from "./WicketUtils";
-import * as Event from "./Event";
+import {Event} from "./Event";
 import {Log} from "./Log";
 
 export class Focus {

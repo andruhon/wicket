@@ -16,7 +16,7 @@
  */
 
 import {jQuery, isUndef, $, $$} from "./WicketUtils";
-import * as Event from "./Event";
+import {Event} from "./Event";
 
 /**
  * DOM nodes serialization functionality

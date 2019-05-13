@@ -378,182 +378,171 @@ var Wicket = (function (exports) {
      * See the License for the specific language governing permissions and
      * limitations under the License.
      */
-    var idCounter = 0;
-    function getId(element) {
-        var $el = jQuery(element);
-        var id = $el.prop("id");
-        if (typeof (id) === "string" && id.length > 0) {
-            return id;
+    var Event = /** @class */ (function () {
+        function Event() {
         }
-        else {
-            id = "wicket-generated-id-" + idCounter++;
-            $el.prop("id", id);
-            return id;
-        }
-    }
-    function keyCode(evt) {
-        return fix(evt).keyCode;
-    }
-    /**
-     * Prevent event from bubbling up in the element hierarchy.
-     * @param evt {Event} - the event to stop
-     * @param immediate {Boolean} - true if the event should not be handled by other listeners registered
-     *      on the same HTML element. Optional
-     */
-    function stop(evt, immediate) {
-        evt = fix(evt);
-        if (immediate) {
-            evt.stopImmediatePropagation();
-        }
-        else {
-            evt.stopPropagation();
-        }
-        return evt;
-    }
-    /**
-     * If no event is given as argument (IE), window.event is returned.
-     */
-    function fix(evt) {
-        return jQuery.event.fix(evt || window.event);
-    }
-    function fire(element, event) {
-        event = (event === 'mousewheel' && exports.Browser.isGecko()) ? 'DOMMouseScroll' : event;
-        jQuery(element).trigger(event);
-    }
-    /**
-     * Binds an event listener for an element
-     *
-     * Also supports the special 'domready' event on window.
-     * 'domready' is event fired when the DOM is complete, but
-     * before loading external resources (images, scripts, ...)
-     *
-     * @param element {HTMLElement} The host HTML element
-     * @param type {String} The type of the DOM event
-     * @param fn {Function} The event handler to unbind
-     * @param data {Object} Extra data for the event
-     * @param selector {String} A selector string to filter the descendants of the selected
-     *      elements that trigger the event. If the selector is null or omitted,
-     *      the event is always triggered when it reaches the selected element.
-     */
-    function add(element, type, fn, data, selector) {
-        if (type === 'domready') {
-            jQuery(fn);
-        }
-        else if (type === 'load' && element === window) {
-            jQuery(window).on('load', function () {
-                jQuery(fn);
-            });
-        }
-        else {
-            type = (type === 'mousewheel' && exports.Browser.isGecko()) ? 'DOMMouseScroll' : type;
-            var el = element;
-            if (typeof (element) === 'string') {
-                el = document.getElementById(element);
-            }
-            if (!el && Log) {
-                Log.error('Cannot bind a listener for event "' + type +
-                    '" on element "' + element + '" because the element is not in the DOM');
-            }
-            jQuery(el).on(type, selector, data, fn);
-        }
-        return element;
-    }
-    /**
-     * Unbinds an event listener for an element
-     *
-     * @param element {HTMLElement} The host HTML element
-     * @param type {String} The type of the DOM event
-     * @param fn {Function} The event handler to unbind
-     */
-    function remove(element, type, fn) {
-        jQuery(element).off(type, fn);
-    }
-    /**
-     * Adds a subscriber for the passed topic.
-     *
-     * @param topic {String} - the channel name for which this subscriber will be notified
-     *        If '*' then it will be notified for all topics
-     * @param subscriber {Function} - the callback to call when an event with this type is published
-     */
-    function subscribe(topic, subscriber) {
-        if (topic) {
-            jQuery(document).on(topic, subscriber);
-        }
-    }
-    /**
-     * Un-subscribes a subscriber from a topic.
-     * @param topic {String} - the topic name. If omitted un-subscribes all
-     *      subscribers from all topics
-     * @param subscriber {Function} - the handler to un-subscribe. If omitted then
-     *      all subscribers are removed from this topic
-     */
-    function unsubscribe(topic, subscriber) {
-        if (topic) {
-            if (subscriber) {
-                jQuery(document).off(topic, subscriber);
+        Event.idCounter = 0;
+        /**
+         * The names of the topics on which Wicket notifies
+         */
+        Event.Topic = {
+            DOM_NODE_REMOVING: '/dom/node/removing',
+            DOM_NODE_ADDED: '/dom/node/added',
+            AJAX_CALL_INIT: '/ajax/call/init',
+            AJAX_CALL_BEFORE: '/ajax/call/before',
+            AJAX_CALL_PRECONDITION: '/ajax/call/precondition',
+            AJAX_CALL_BEFORE_SEND: '/ajax/call/beforeSend',
+            AJAX_CALL_SUCCESS: '/ajax/call/success',
+            AJAX_CALL_COMPLETE: '/ajax/call/complete',
+            AJAX_CALL_AFTER: '/ajax/call/after',
+            AJAX_CALL_FAILURE: '/ajax/call/failure',
+            AJAX_CALL_DONE: '/ajax/call/done',
+            AJAX_HANDLERS_BOUND: '/ajax/handlers/bound'
+        };
+        Event.getId = function (element) {
+            var $el = jQuery(element);
+            var id = $el.prop("id");
+            if (typeof (id) === "string" && id.length > 0) {
+                return id;
             }
             else {
-                jQuery(document).off(topic);
+                id = "wicket-generated-id-" + Event.idCounter++;
+                $el.prop("id", id);
+                return id;
             }
-        }
-        else {
-            jQuery(document).off();
-        }
-    }
-    /**
-     * Sends a notification to all subscribers for the given topic.
-     * Subscribers for topic '*' receive the actual topic as first parameter,
-     * otherwise the topic is not passed to subscribers which listen for specific
-     * event types.
-     *
-     * @param topic {String} - the channel name for which all subscribers will be notified.
-     * @param args
-     */
-    function publish(topic) {
-        var args = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            args[_i - 1] = arguments[_i];
-        }
-        if (topic) {
-            // cut the topic argument
-            // var args = Array.prototype.slice.call(inArgs).slice(1);
-            jQuery(document).triggerHandler(topic, args);
-            jQuery(document).triggerHandler('*', args);
-        }
-    }
-    /**
-     * The names of the topics on which Wicket notifies
-     */
-    var Topic;
-    (function (Topic) {
-        Topic["DOM_NODE_REMOVING"] = "/dom/node/removing";
-        Topic["DOM_NODE_ADDED"] = "/dom/node/added";
-        Topic["AJAX_CALL_INIT"] = "/ajax/call/init";
-        Topic["AJAX_CALL_BEFORE"] = "/ajax/call/before";
-        Topic["AJAX_CALL_PRECONDITION"] = "/ajax/call/precondition";
-        Topic["AJAX_CALL_BEFORE_SEND"] = "/ajax/call/beforeSend";
-        Topic["AJAX_CALL_SUCCESS"] = "/ajax/call/success";
-        Topic["AJAX_CALL_COMPLETE"] = "/ajax/call/complete";
-        Topic["AJAX_CALL_AFTER"] = "/ajax/call/after";
-        Topic["AJAX_CALL_FAILURE"] = "/ajax/call/failure";
-        Topic["AJAX_CALL_DONE"] = "/ajax/call/done";
-        Topic["AJAX_HANDLERS_BOUND"] = "/ajax/handlers/bound";
-    })(Topic || (Topic = {}));
-
-    var Event = /*#__PURE__*/Object.freeze({
-        get idCounter () { return idCounter; },
-        getId: getId,
-        keyCode: keyCode,
-        stop: stop,
-        fix: fix,
-        fire: fire,
-        add: add,
-        remove: remove,
-        subscribe: subscribe,
-        unsubscribe: unsubscribe,
-        publish: publish,
-        get Topic () { return Topic; }
-    });
+        };
+        Event.keyCode = function (evt) {
+            return Event.fix(evt).keyCode;
+        };
+        /**
+         * Prevent event from bubbling up in the element hierarchy.
+         * @param evt {Event} - the event to stop
+         * @param immediate {Boolean} - true if the event should not be handled by other listeners registered
+         *      on the same HTML element. Optional
+         */
+        Event.stop = function (evt, immediate) {
+            evt = Event.fix(evt);
+            if (immediate) {
+                evt.stopImmediatePropagation();
+            }
+            else {
+                evt.stopPropagation();
+            }
+            return evt;
+        };
+        /**
+         * If no event is given as argument (IE), window.event is returned.
+         */
+        Event.fix = function (evt) {
+            return jQuery.event.fix(evt || window.event);
+        };
+        Event.fire = function (element, event) {
+            event = (event === 'mousewheel' && exports.Browser.isGecko()) ? 'DOMMouseScroll' : event;
+            jQuery(element).trigger(event);
+        };
+        /**
+         * Binds an event listener for an element
+         *
+         * Also supports the special 'domready' event on window.
+         * 'domready' is event fired when the DOM is complete, but
+         * before loading external resources (images, scripts, ...)
+         *
+         * @param element {HTMLElement} The host HTML element
+         * @param type {String} The type of the DOM event
+         * @param fn {Function} The event handler to unbind
+         * @param data {Object} Extra data for the event
+         * @param selector {String} A selector string to filter the descendants of the selected
+         *      elements that trigger the event. If the selector is null or omitted,
+         *      the event is always triggered when it reaches the selected element.
+         */
+        Event.add = function (element, type, fn, data, selector) {
+            if (type === 'domready') {
+                jQuery(fn);
+            }
+            else if (type === 'load' && element === window) {
+                jQuery(window).on('load', function () {
+                    jQuery(fn);
+                });
+            }
+            else {
+                type = (type === 'mousewheel' && exports.Browser.isGecko()) ? 'DOMMouseScroll' : type;
+                var el = element;
+                if (typeof (element) === 'string') {
+                    el = document.getElementById(element);
+                }
+                if (!el && Log) {
+                    Log.error('Cannot bind a listener for event "' + type +
+                        '" on element "' + element + '" because the element is not in the DOM');
+                }
+                jQuery(el).on(type, selector, data, fn);
+            }
+            return element;
+        };
+        /**
+         * Unbinds an event listener for an element
+         *
+         * @param element {HTMLElement} The host HTML element
+         * @param type {String} The type of the DOM event
+         * @param fn {Function} The event handler to unbind
+         */
+        Event.remove = function (element, type, fn) {
+            jQuery(element).off(type, fn);
+        };
+        /**
+         * Adds a subscriber for the passed topic.
+         *
+         * @param topic {String} - the channel name for which this subscriber will be notified
+         *        If '*' then it will be notified for all topics
+         * @param subscriber {Function} - the callback to call when an event with this type is published
+         */
+        Event.subscribe = function (topic, subscriber) {
+            if (topic) {
+                jQuery(document).on(topic, subscriber);
+            }
+        };
+        /**
+         * Un-subscribes a subscriber from a topic.
+         * @param topic {String} - the topic name. If omitted un-subscribes all
+         *      subscribers from all topics
+         * @param subscriber {Function} - the handler to un-subscribe. If omitted then
+         *      all subscribers are removed from this topic
+         */
+        Event.unsubscribe = function (topic, subscriber) {
+            if (topic) {
+                if (subscriber) {
+                    jQuery(document).off(topic, subscriber);
+                }
+                else {
+                    jQuery(document).off(topic);
+                }
+            }
+            else {
+                jQuery(document).off();
+            }
+        };
+        /**
+         * Sends a notification to all subscribers for the given topic.
+         * Subscribers for topic '*' receive the actual topic as first parameter,
+         * otherwise the topic is not passed to subscribers which listen for specific
+         * event types.
+         *
+         * @param topic {String} - the channel name for which all subscribers will be notified.
+         * @param args
+         */
+        Event.publish = function (topic) {
+            var args = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                args[_i - 1] = arguments[_i];
+            }
+            if (topic) {
+                // cut the topic argument
+                // var args = Array.prototype.slice.call(inArgs).slice(1);
+                jQuery(document).triggerHandler(topic, args);
+                jQuery(document).triggerHandler('*', args);
+            }
+        };
+        return Event;
+    }());
 
     /*
      * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -828,7 +817,7 @@ var Wicket = (function (exports) {
         function Focus() {
         }
         Focus.focusin = function (event) {
-            event = fix(event);
+            event = Event.fix(event);
             var target = event.target;
             if (target) {
                 var WF = Focus;
@@ -839,7 +828,7 @@ var Wicket = (function (exports) {
             }
         };
         Focus.focusout = function (event) {
-            event = fix(event);
+            event = Event.fix(event);
             var target = event.target;
             var WF = Focus;
             if (target && WF.lastFocusId === target.id) {
@@ -958,6 +947,30 @@ var Wicket = (function (exports) {
         Focus.focusSetFromServer = false;
         return Focus;
     }());
+
+    /*
+     * Licensed to the Apache Software Foundation (ASF) under one or more
+     * contributor license agreements.  See the NOTICE file distributed with
+     * this work for additional information regarding copyright ownership.
+     * The ASF licenses this file to You under the Apache License, Version 2.0
+     * (the "License"); you may not use this file except in compliance with
+     * the License.  You may obtain a copy of the License at
+     *
+     *      http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function parse(text) {
+        return parseXML(text);
+    }
+
+    var Xml = /*#__PURE__*/Object.freeze({
+        parse: parse
+    });
 
     /*
      * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -1158,30 +1171,6 @@ var Wicket = (function (exports) {
         serializeElement: serializeElement,
         serializeForm: serializeForm,
         serialize: serialize
-    });
-
-    /*
-     * Licensed to the Apache Software Foundation (ASF) under one or more
-     * contributor license agreements.  See the NOTICE file distributed with
-     * this work for additional information regarding copyright ownership.
-     * The ASF licenses this file to You under the Apache License, Version 2.0
-     * (the "License"); you may not use this file except in compliance with
-     * the License.  You may obtain a copy of the License at
-     *
-     *      http://www.apache.org/licenses/LICENSE-2.0
-     *
-     * Unless required by applicable law or agreed to in writing, software
-     * distributed under the License is distributed on an "AS IS" BASIS,
-     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     * See the License for the specific language governing permissions and
-     * limitations under the License.
-     */
-    function parse(text) {
-        return parseXML(text);
-    }
-
-    var Xml = /*#__PURE__*/Object.freeze({
-        parse: parse
     });
 
     /*
@@ -1760,6 +1749,211 @@ var Wicket = (function (exports) {
      * limitations under the License.
      */
     /**
+     * Flexible dragging support.
+     * TODO move somewhere else from wicket core (for example to the Modal)
+     */
+    var Drag = {
+        current: undefined,
+        /**
+         * Initializes dragging on the specified element.
+         *
+         * @param element {Element}
+         *            element clicking on which
+         *            the drag should begin
+         * @param onDragBegin {Function}
+         *            called at the begin of dragging - passed element and event as parameters,
+         *            may return false to prevent the start
+         * @param onDragEnd {Function}
+         *            handler called at the end of dragging - passed element as parameter
+         * @param onDrag {Function}
+         *            handler called during dragging - passed element and mouse deltas as parameters
+         */
+        init: function (element, onDragBegin, onDragEnd, onDrag) {
+            if (typeof (onDragBegin) === "undefined") {
+                onDragBegin = jQuery.noop;
+            }
+            if (typeof (onDragEnd) === "undefined") {
+                onDragEnd = jQuery.noop;
+            }
+            if (typeof (onDrag) === "undefined") {
+                onDrag = jQuery.noop;
+            }
+            element.wicketOnDragBegin = onDragBegin;
+            element.wicketOnDrag = onDrag;
+            element.wicketOnDragEnd = onDragEnd;
+            // set the mousedown handler
+            Event.add(element, "mousedown", Drag.mouseDownHandler);
+        },
+        mouseDownHandler: function (e) {
+            e = Event.fix(e);
+            var element = this;
+            if (element.wicketOnDragBegin(element, e) === false) {
+                return;
+            }
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            element.lastMouseX = e.clientX;
+            element.lastMouseY = e.clientY;
+            element.old_onmousemove = document.onmousemove;
+            element.old_onmouseup = document.onmouseup;
+            element.old_onselectstart = document.onselectstart;
+            element.old_onmouseout = document.onmouseout;
+            document.onselectstart = function () {
+                return false;
+            };
+            document.onmousemove = Drag.mouseMove;
+            document.onmouseup = Drag.mouseUp;
+            document.onmouseout = Drag.mouseOut;
+            Drag.current = element;
+        },
+        /**
+         * Deinitializes the dragging support on given element.
+         */
+        clean: function (element) {
+            element.onmousedown = null;
+        },
+        /**
+         * Called when mouse is moved. This method fires the onDrag event
+         * with element instance, deltaX and deltaY (the distance
+         * between this call and the previous one).
+
+         * The onDrag handler can optionally return an array of two integers
+         * - the delta correction. This is used, for example, if there is
+         * element being resized and the size limit has been reached (but the
+         * mouse can still move).
+         *
+         * @param {Event} e
+         */
+        mouseMove: function (e) {
+            e = Event.fix(e);
+            var o = Drag.current;
+            // this happens sometimes in Safari
+            if (e.clientX < 0 || e.clientY < 0) {
+                return;
+            }
+            if (o !== null) {
+                var deltaX = e.clientX - o.lastMouseX;
+                var deltaY = e.clientY - o.lastMouseY;
+                var res = o.wicketOnDrag(o, deltaX, deltaY, e);
+                if (isUndef(res)) {
+                    res = [0, 0];
+                }
+                o.lastMouseX = e.clientX + res[0];
+                o.lastMouseY = e.clientY + res[1];
+            }
+            return false;
+        },
+        /**
+         * Called when the mouse button is released.
+         * Cleans all temporary variables and callback methods.
+         */
+        mouseUp: function (e) {
+            var o = Drag.current;
+            if (o) {
+                o.wicketOnDragEnd(o);
+                o.lastMouseX = null;
+                o.lastMouseY = null;
+                document.onmousemove = o.old_onmousemove;
+                document.onmouseup = o.old_onmouseup;
+                document.onselectstart = o.old_onselectstart;
+                document.onmouseout = o.old_onmouseout;
+                o.old_mousemove = null;
+                o.old_mouseup = null;
+                o.old_onselectstart = null;
+                o.old_onmouseout = null;
+                Drag.current = null;
+            }
+        },
+        /**
+         * Called when mouse leaves an element. We need this for firefox, as otherwise
+         * the dragging would continue after mouse leaves the document.
+         * Unfortunately this break dragging in firefox immediately after the mouse leaves
+         * page.
+         */
+        mouseOut: function (e) {
+        }
+    };
+
+    /*
+     * Licensed to the Apache Software Foundation (ASF) under one or more
+     * contributor license agreements.  See the NOTICE file distributed with
+     * this work for additional information regarding copyright ownership.
+     * The ASF licenses this file to You under the Apache License, Version 2.0
+     * (the "License"); you may not use this file except in compliance with
+     * the License.  You may obtain a copy of the License at
+     *
+     *      http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var TimerHandles = {};
+    /**
+     * Manages the functionality needed by AbstractAjaxTimerBehavior and its subclasses
+     */
+    var Timer = {
+        /**
+         * Schedules a timer
+         * @param {string} timerId - the identifier for the timer
+         * @param {function} f - the JavaScript function to execute after the timeout
+         * @param {number} delay - the timeout
+         */
+        'set': function (timerId, f, delay) {
+            // if (typeof(TimerHandles) === 'undefined') {
+            //     TimerHandles = {};
+            // }
+            Timer.clear(timerId);
+            TimerHandles[timerId] = setTimeout(function () {
+                Timer.clear(timerId);
+                f();
+            }, delay);
+        },
+        /**
+         * Clears a timer by its id
+         * @param {string} timerId - the identifier of the timer
+         */
+        clear: function (timerId) {
+            if (TimerHandles && TimerHandles[timerId]) {
+                clearTimeout(TimerHandles[timerId]);
+                delete TimerHandles[timerId];
+            }
+        },
+        /**
+         * Clear all remaining timers.
+         */
+        clearAll: function () {
+            var WTH = TimerHandles;
+            if (WTH) {
+                for (var th in WTH) {
+                    if (WTH.hasOwnProperty(th)) {
+                        Timer.clear(th);
+                    }
+                }
+            }
+        }
+    };
+
+    /*
+     * Licensed to the Apache Software Foundation (ASF) under one or more
+     * contributor license agreements.  See the NOTICE file distributed with
+     * this work for additional information regarding copyright ownership.
+     * The ASF licenses this file to You under the Apache License, Version 2.0
+     * (the "License"); you may not use this file except in compliance with
+     * the License.  You may obtain a copy of the License at
+     *
+     *      http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    /**
      * Channel management
      *
      * Wicket Ajax requests are organized in channels. A channel maintain the order of
@@ -1976,6 +2170,7 @@ var Wicket = (function (exports) {
         };
         /**
          * A helper function that executes an array of handlers (before, success, failure)
+         * (note: it isn't marked as private because it's used in another class of Wicket)
          *
          * @param handlers {Array[Function]} - the handlers to execute
          * @package
@@ -2094,7 +2289,7 @@ var Wicket = (function (exports) {
             // the headers to use for each Ajax request
             headers = {
                 'Wicket-Ajax': 'true',
-                'Wicket-Ajax-BaseURL': getAjaxBaseUrl()
+                'Wicket-Ajax-BaseURL': Ajax.getAjaxBaseUrl()
             }, url = attrs.u, 
             // the request (extra) parameters
             data = this._asParamArray(attrs.ep), self = this, 
@@ -2376,7 +2571,7 @@ var Wicket = (function (exports) {
                 Log.info("Response processed successfully.");
                 var attrs = context.attrs;
                 this._executeHandlers(attrs.sh, attrs, null, null, 'success');
-                publish(Topic.AJAX_CALL_SUCCESS, attrs, null, null, 'success');
+                Event.publish(Event.Topic.AJAX_CALL_SUCCESS, attrs, null, null, 'success');
                 Focus.requestFocus();
                 // continue to next step (which should make the processing stop, as success should be the final step)
                 return FunctionsExecuter.DONE;
@@ -2390,13 +2585,13 @@ var Wicket = (function (exports) {
                 }
                 var attrs = context.attrs;
                 this._executeHandlers(attrs.fh, attrs, jqXHR, errorMessage, textStatus);
-                publish(Topic.AJAX_CALL_FAILURE, attrs, jqXHR, errorMessage, textStatus);
+                Event.publish(Event.Topic.AJAX_CALL_FAILURE, attrs, jqXHR, errorMessage, textStatus);
                 return FunctionsExecuter.DONE;
             }, this));
         };
         Call.prototype.done = function (attrs) {
             this._executeHandlers(attrs.dh, attrs);
-            publish(Topic.AJAX_CALL_DONE, attrs);
+            Event.publish(Event.Topic.AJAX_CALL_DONE, attrs);
             channelManager.done(attrs.ch);
         };
         // Adds a closure that replaces a component
@@ -2651,157 +2846,90 @@ var Wicket = (function (exports) {
      * The Ajax.Request class encapsulates a XmlHttpRequest.
      */
     /* the Ajax module */
-    var baseUrl = undefined;
-    /**
-     * A safe getter for Wicket's Ajax base URL.
-     * If the value is not defined or is empty string then
-     * return '.' (current folder) as base URL.
-     * Used for request header and parameter
-     */
-    function getAjaxBaseUrl() {
-        return '.';
-    }
-    function _handleEventCancelation(attrs) {
-        var evt = attrs.event;
-        if (evt) {
-            if (attrs.pd) {
-                try {
-                    evt.preventDefault();
-                }
-                catch (ignore) {
-                    // WICKET-4986
-                    // jquery fails 'member not found' with calls on busy channel
-                }
-            }
-            if (attrs.sp === "stop") {
-                stop(evt);
-            }
-            else if (attrs.sp === "stopImmediate") {
-                stop(evt, true);
-            }
+    var Ajax = /** @class */ (function () {
+        function Ajax() {
         }
-    }
-    function get$1(attrs) {
-        attrs.m = 'GET';
-        return ajax(attrs);
-    }
-    function post(attrs) {
-        attrs.m = 'POST';
-        return ajax(attrs);
-    }
-    function ajax(attrs) {
-        attrs.c = attrs.c || window;
-        attrs.e = attrs.e || ['domready'];
-        if (!jQuery.isArray(attrs.e)) {
-            attrs.e = [attrs.e];
-        }
-        jQuery.each(attrs.e, function (idx, evt) {
-            add(attrs.c, evt, function (jqEvent, data) {
-                var call = new Call();
-                var attributes = jQuery.extend({}, attrs);
-                if (evt !== "domready") {
-                    attributes.event = fix(jqEvent);
-                    if (data) {
-                        attributes.event.extraData = data;
+        Ajax.baseUrl = undefined;
+        Ajax.Channel = Channel;
+        Ajax.redirect = redirect;
+        Ajax._handleEventCancelation = function (attrs) {
+            var evt = attrs.event;
+            if (evt) {
+                if (attrs.pd) {
+                    try {
+                        evt.preventDefault();
+                    }
+                    catch (ignore) {
+                        // WICKET-4986
+                        // jquery fails 'member not found' with calls on busy channel
                     }
                 }
-                call._executeHandlers(attributes.ih, attributes);
-                publish(Topic.AJAX_CALL_INIT, attributes);
-                var throttlingSettings = attributes.tr;
-                if (throttlingSettings) {
-                    var postponeTimerOnUpdate = throttlingSettings.p || false;
-                    var throttler = new Throttler(postponeTimerOnUpdate);
-                    throttler.throttle(throttlingSettings.id, throttlingSettings.d, bind(function () {
+                if (attrs.sp === "stop") {
+                    Event.stop(evt);
+                }
+                else if (attrs.sp === "stopImmediate") {
+                    Event.stop(evt, true);
+                }
+            }
+        };
+        /**
+         * A safe getter for Wicket's Ajax base URL.
+         * If the value is not defined or is empty string then
+         * return '.' (current folder) as base URL.
+         * Used for request header and parameter
+         */
+        Ajax.getAjaxBaseUrl = function () {
+            return Ajax.baseUrl || '.';
+        };
+        Ajax.get = function (attrs) {
+            attrs.m = 'GET';
+            return Ajax.ajax(attrs);
+        };
+        Ajax.post = function (attrs) {
+            attrs.m = 'POST';
+            return Ajax.ajax(attrs);
+        };
+        Ajax.ajax = function (attrs) {
+            attrs.c = attrs.c || window;
+            attrs.e = attrs.e || ['domready'];
+            if (!jQuery.isArray(attrs.e)) {
+                attrs.e = [attrs.e];
+            }
+            jQuery.each(attrs.e, function (idx, evt) {
+                Event.add(attrs.c, evt, function (jqEvent, data) {
+                    var call = new Call();
+                    var attributes = jQuery.extend({}, attrs);
+                    if (evt !== "domready") {
+                        attributes.event = Event.fix(jqEvent);
+                        if (data) {
+                            attributes.event.extraData = data;
+                        }
+                    }
+                    call._executeHandlers(attributes.ih, attributes);
+                    Event.publish(Event.Topic.AJAX_CALL_INIT, attributes);
+                    var throttlingSettings = attributes.tr;
+                    if (throttlingSettings) {
+                        var postponeTimerOnUpdate = throttlingSettings.p || false;
+                        var throttler = new Throttler(postponeTimerOnUpdate);
+                        throttler.throttle(throttlingSettings.id, throttlingSettings.d, bind(function () {
+                            call.ajax(attributes);
+                        }, this));
+                    }
+                    else {
                         call.ajax(attributes);
-                    }, this));
-                }
-                else {
-                    call.ajax(attributes);
-                }
-                if (evt !== "domready") {
-                    _handleEventCancelation(attributes);
-                }
-            }, null, attrs.sel);
-        });
-    }
-    function process(data) {
-        var call = new Call();
-        call.process(data);
-    }
-
-    var Ajax = /*#__PURE__*/Object.freeze({
-        baseUrl: baseUrl,
-        getAjaxBaseUrl: getAjaxBaseUrl,
-        _handleEventCancelation: _handleEventCancelation,
-        get: get$1,
-        post: post,
-        ajax: ajax,
-        process: process,
-        redirect: redirect,
-        Channel: Channel
-    });
-
-    /*
-     * Licensed to the Apache Software Foundation (ASF) under one or more
-     * contributor license agreements.  See the NOTICE file distributed with
-     * this work for additional information regarding copyright ownership.
-     * The ASF licenses this file to You under the Apache License, Version 2.0
-     * (the "License"); you may not use this file except in compliance with
-     * the License.  You may obtain a copy of the License at
-     *
-     *      http://www.apache.org/licenses/LICENSE-2.0
-     *
-     * Unless required by applicable law or agreed to in writing, software
-     * distributed under the License is distributed on an "AS IS" BASIS,
-     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     * See the License for the specific language governing permissions and
-     * limitations under the License.
-     */
-    var TimerHandles = {};
-    /**
-     * Manages the functionality needed by AbstractAjaxTimerBehavior and its subclasses
-     */
-    var Timer = {
-        /**
-         * Schedules a timer
-         * @param {string} timerId - the identifier for the timer
-         * @param {function} f - the JavaScript function to execute after the timeout
-         * @param {number} delay - the timeout
-         */
-        'set': function (timerId, f, delay) {
-            // if (typeof(TimerHandles) === 'undefined') {
-            //     TimerHandles = {};
-            // }
-            Timer.clear(timerId);
-            TimerHandles[timerId] = setTimeout(function () {
-                Timer.clear(timerId);
-                f();
-            }, delay);
-        },
-        /**
-         * Clears a timer by its id
-         * @param {string} timerId - the identifier of the timer
-         */
-        clear: function (timerId) {
-            if (TimerHandles && TimerHandles[timerId]) {
-                clearTimeout(TimerHandles[timerId]);
-                delete TimerHandles[timerId];
-            }
-        },
-        /**
-         * Clear all remaining timers.
-         */
-        clearAll: function () {
-            var WTH = TimerHandles;
-            if (WTH) {
-                for (var th in WTH) {
-                    if (WTH.hasOwnProperty(th)) {
-                        Timer.clear(th);
                     }
-                }
-            }
-        }
-    };
+                    if (evt !== "domready") {
+                        Ajax._handleEventCancelation(attributes);
+                    }
+                }, null, attrs.sel);
+            });
+        };
+        Ajax.process = function (data) {
+            var call = new Call();
+            call.process(data);
+        };
+        return Ajax;
+    }());
 
     /*
      * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -2909,12 +3037,12 @@ var Wicket = (function (exports) {
     /**
      * Track focussed element.
      */
-    add(window, 'focusin', Focus.focusin);
-    add(window, 'focusout', Focus.focusout);
+    Event.add(window, 'focusin', Focus.focusin);
+    Event.add(window, 'focusout', Focus.focusout);
     /**
      * Clear any scheduled Ajax timers when leaving the current page
      */
-    add(window, "unload", function () {
+    Event.add(window, "unload", function () {
         Timer.clearAll();
     });
 
@@ -2925,6 +3053,7 @@ var Wicket = (function (exports) {
     exports.ChannelManager = ChannelManager;
     exports.Class = Class;
     exports.DOM = DOM;
+    exports.Drag = Drag;
     exports.Event = Event;
     exports.Focus = Focus;
     exports.Form = Form;

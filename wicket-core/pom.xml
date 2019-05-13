@@ -167,7 +167,7 @@
 									<goal>npm</goal>
 								</goals>
 								<configuration>
-									<arguments>run rollup</arguments>
+									<arguments>run rollup --config</arguments>
 								</configuration>
 							</execution>
 						</executions>

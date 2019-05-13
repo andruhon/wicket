@@ -19,12 +19,12 @@ import {jQuery} from "./Wicket/WicketUtils";
 import * as Class from "./Wicket/Class";
 import * as DOM from "./Wicket/DOM";
 import {Focus} from "./Wicket/Focus";
-import * as Event from "./Wicket/Event";
-import * as Ajax from "./Wicket/Ajax";
+import {Event} from "./Wicket/Event";
 import {Browser} from "./Wicket/Browser";
 import * as Xml from "./Wicket/Xml";
 import * as Form from "./Wicket/Form";
 import * as Head from "./Wicket/Head";
+import {Drag} from "./Wicket/Drag";
 import {TimerHandles, Timer} from "./Wicket/Timer";
 
 /*
@@ -147,11 +147,13 @@ Event.add(window, "unload", function() {
 export {$, $$, merge, bind} from "./Wicket/WicketUtils"
 export {channelManager, ChannelManager} from "./Wicket/ChannelManager";
 export {Log} from "./Wicket/Log";
+export {Ajax} from "./Wicket/Ajax";
+export {Event} from "./Wicket/Event";
 export {Timer, TimerHandles};
 export {Channel} from "./Wicket/Channel";
 export {throttler, Throttler} from "./Wicket/Throttler";
 export {ThrottlerEntry} from "./Wicket/ThrottlerEntry";
-export {Ajax, Class, DOM, Event, Browser, Xml, Form, Head, Focus};
+export {Class, DOM, Browser, Xml, Form, Head, Focus, Drag};
 
 
 
