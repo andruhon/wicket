@@ -490,4 +490,10 @@ public class CopyOnWriteValueMap implements IValueMap, Serializable
 	{
 		return wrapped.getAsEnum(key, eClass, defaultValue);
 	}
+
+	@Override
+	public String toString() {
+		return wrapped.toString();
+	}
+
 }

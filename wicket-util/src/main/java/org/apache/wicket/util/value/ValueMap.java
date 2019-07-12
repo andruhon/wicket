@@ -554,7 +554,7 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 			first = false;
 
 			buffer.append(entry.getKey());
-			buffer.append(" = \"");
+			buffer.append("=\"");
 			final Object value = entry.getValue();
 			if (value == null)
 			{
