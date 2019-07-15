@@ -29,6 +29,7 @@ import org.apache.wicket.util.string.IStringIterator;
 import org.apache.wicket.util.string.StringList;
 import org.apache.wicket.util.string.StringValue;
 import org.apache.wicket.util.string.StringValueConversionException;
+import org.apache.wicket.util.string.Strings;
 import org.apache.wicket.util.time.Duration;
 import org.apache.wicket.util.time.Time;
 
@@ -62,6 +63,9 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 	/** an empty <code>ValueMap</code>. */
 	public static final ValueMap EMPTY_MAP;
 
+	/** keys values of which not to be escaped */
+	private final Collection<String> noEscapeMarkupKeys = new HashSet<>();
+
 	/** create EMPTY_MAP, make immutable * */
 	static
 	{
@@ -82,6 +86,20 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 	public ValueMap()
 	{
 		super();
+	}
+
+	/**
+	 * Constructs empty <code>ValueMap</code>.
+	 * @param noEscapeMarkupKeys
+	 * 		a set of keys to not aply
+	 */
+	public ValueMap(Collection<String> noEscapeMarkupKeys)
+	{
+		super();
+		if (noEscapeMarkupKeys != null)
+		{
+			this.noEscapeMarkupKeys.addAll(noEscapeMarkupKeys);
+		}
 	}
 
 	/**
@@ -170,6 +188,13 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 				equalsIndex = -1;
 			}
 		}
+	}
+
+	/**
+	 * Add a key which should not be escaped when map is rendered wit {@link #toString()}
+	 */
+	public void addNoEscapeKey(String key) {
+		noEscapeMarkupKeys.add(key);
 	}
 
 	/**
@@ -536,7 +561,7 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 
 	/**
 	 * Generates a <code>String</code> representation of this object.
-	 * 
+	 *
 	 * @return <code>String</code> representation of this <code>ValueMap</code> consistent with the
 	 *         tag-attribute style of markup elements. For example: <code>a="x" b="y" c="z"</code>.
 	 */
@@ -552,8 +577,8 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 				buffer.append(' ');
 			}
 			first = false;
-
-			buffer.append(entry.getKey());
+			String key = entry.getKey();
+			buffer.append(key);
 			buffer.append("=\"");
 			final Object value = entry.getValue();
 			if (value == null)
@@ -566,7 +591,11 @@ public class ValueMap extends LinkedHashMap<String, Object> implements IValueMap
 			}
 			else
 			{
-				buffer.append(value);
+				buffer.append(
+						!noEscapeMarkupKeys.isEmpty() && noEscapeMarkupKeys.contains(key)
+								? value
+								: Strings.escapeMarkup(String.valueOf(value))
+				);
 			}
 
 			buffer.append('\"');

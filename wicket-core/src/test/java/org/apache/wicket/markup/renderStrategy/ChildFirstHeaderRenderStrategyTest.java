@@ -83,8 +83,8 @@ public class ChildFirstHeaderRenderStrategyTest extends WicketTestCase
 			headerStylesheetLinks.add(headerStyleSheetLinkMatcher.group());
 		}
 
-		assertTrue(headerStylesheetLinks.contains("<link rel=\"stylesheet\" type=\"text/css\" href=\"../../enclosedInInline.css\" />"));
-		assertTrue(headerStylesheetLinks.contains("<link rel=\"stylesheet\" type=\"text/css\" href=\"../../enclosed.css\" />"));
+		assertTrue(headerStylesheetLinks.contains("<link rel=\"stylesheet\" type=\"text/css\" href=\"../../enclosedInInline.css\"/>"));
+		assertTrue(headerStylesheetLinks.contains("<link rel=\"stylesheet\" type=\"text/css\" href=\"../../enclosed.css\"/>"));
 
 	}
 

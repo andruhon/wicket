@@ -113,7 +113,7 @@ public class HeaderResponseTest
     {
         headerResponse.render(CssHeaderItem.forReference(reference, null, "screen", "lt IE 8"));
         String expected = "<!--[if lt IE 8]><link rel=\"stylesheet\" type=\"text/css\" href=\"" +
-            RESOURCE_NAME + "\" media=\"screen\" /><![endif]-->\n";
+            RESOURCE_NAME + "\" media=\"screen\"/><![endif]-->\n";
         String actual = headerResponse.getResponse().toString();
         Assert.assertEquals(expected, actual);
     }
@@ -125,7 +125,7 @@ public class HeaderResponseTest
     public void conditionalRenderCSSReferenceWithUrl()
     {
         headerResponse.render(CssHeaderItem.forUrl("resource.css", "screen", "lt IE 8"));
-        String expected = "<!--[if lt IE 8]><link rel=\"stylesheet\" type=\"text/css\" href=\""+RESOURCE_NAME+"\" media=\"screen\" /><![endif]-->\n";
+        String expected = "<!--[if lt IE 8]><link rel=\"stylesheet\" type=\"text/css\" href=\""+RESOURCE_NAME+"\" media=\"screen\"/><![endif]-->\n";
         String actual = headerResponse.getResponse().toString();
         Assert.assertEquals(expected, actual);
     }
