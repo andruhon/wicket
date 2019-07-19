@@ -17,6 +17,7 @@
 package org.apache.wicket.core.util.string;
 
 import org.apache.wicket.response.StringResponse;
+import org.apache.wicket.util.value.AttributeMap;
 import org.junit.Assert;
 import org.junit.Test;
 

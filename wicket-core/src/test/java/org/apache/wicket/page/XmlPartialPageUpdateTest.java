@@ -23,9 +23,6 @@ import org.apache.wicket.mock.MockWebResponse;
 import org.apache.wicket.util.tester.WicketTestCase;
 import org.junit.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-
 /**
  * Test for {@link XmlPartialPageUpdate}.
  */
